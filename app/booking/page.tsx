@@ -49,8 +49,6 @@ export default function BookingPage() {
   const [courts, setCourts] = useState<Court[]>([]);
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // State สำหรับล็อคปุ่มขณะประมวลผล
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -61,7 +59,6 @@ export default function BookingPage() {
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  // ฟังก์ชันโหลดข้อมูล (ใช้ตอนเริ่ม และตอนจองพลาดเพื่อรีเฟรชข้อมูล)
   async function fetchLatestData() {
     try {
       const [courtsRes, bookingsRes] = await Promise.all([
@@ -172,7 +169,7 @@ export default function BookingPage() {
       return sum + (court ? court.price : 0);
   }, 0);
 
-  // ✅ แก้ไข: ฟังก์ชันนี้จะทำการ "จองจริง" ทันที เพื่อล็อคคิว
+  // ✅ จุดที่แก้ไขสำคัญที่สุดอยู่ตรงนี้!
   const handleConfirmBooking = async () => {
       if (!customerName.trim()) { alert("กรุณากรอกชื่อลูกค้า"); return; }
       if (!phoneNumber.trim()) { alert("กรุณากรอกเบอร์โทรศัพท์"); return; }
@@ -181,7 +178,7 @@ export default function BookingPage() {
       setIsProcessing(true);
 
       try {
-        // วนลูปยิง API เพื่อจองทีละรายการ (Database จะสร้าง record สถานะ PENDING ทันที)
+        // สร้าง Array ของ Promise เพื่อยิงจองพร้อมกัน
         const bookingPromises = selectedSlots.map(slot => {
             const timeString = timeSlots[slot.timeIndex];
             const court = courts.find(c => c.id === slot.courtId);
@@ -193,7 +190,7 @@ export default function BookingPage() {
                 body: JSON.stringify({
                     customerName,
                     phoneNumber,
-                    date: selectedDate, // ส่งวันที่ yyyy-mm-dd ไป
+                    date: selectedDate,
                     startTime: timeString,
                     price: price,
                     courtId: slot.courtId
@@ -201,39 +198,45 @@ export default function BookingPage() {
             });
         });
 
-        // รอผลลัพธ์ทั้งหมด
         const responses = await Promise.all(bookingPromises);
         
-        // ตรวจสอบว่ามีรายการไหนพังไหม (เช่น โดนแย่งจอง = 409)
         let hasError = false;
         let isConflict = false;
+        
+        // 🔥 สำคัญ: สร้างตัวแปรเก็บ ID ที่จองสำเร็จ
+        const successfulBookingIds: number[] = [];
 
         for (const res of responses) {
             if (!res.ok) {
                 hasError = true;
                 if (res.status === 409) isConflict = true;
+            } else {
+                // ถ้าจองสำเร็จ ให้ดึง ID ออกมาเก็บไว้
+                const data = await res.json();
+                if (data.id) {
+                    successfulBookingIds.push(data.id);
+                }
             }
         }
 
         if (hasError) {
              if (isConflict) {
-                 alert("⚠️ เสียใจด้วย! มีบางช่วงเวลาถูกจองตัดหน้าไปแล้ว\nระบบจะรีโหลดข้อมูลใหม่ กรุณาเลือกเวลาอื่น");
+                 alert("⚠️ เสียใจด้วย! มีบางช่วงเวลาถูกจองตัดหน้าไปแล้ว");
              } else {
                  alert("เกิดข้อผิดพลาดในการจอง กรุณาลองใหม่อีกครั้ง");
              }
-             // รีโหลดข้อมูลใหม่เพื่อให้เห็นว่าตรงไหนไม่ว่างแล้ว
              await fetchLatestData(); 
              setSelectedSlots([]);
              setIsProcessing(false);
              return;
         }
 
-        // ✅ จองสำเร็จทั้งหมด! (ตอนนี้ใน DB มีข้อมูลแล้ว สนามเป็นสีแดงแล้ว)
-        
-        // เตรียมข้อมูลไว้โชว์หน้า Payment (เอาแค่ไว้โชว์ เพราะข้อมูลจริงอยู่ DB แล้ว)
+        // ✅ ส่ง ID ทั้งหมดที่จองได้ ไปให้หน้า Payment
         const bookingDetails = {
-            id: `BK-${Date.now()}`, 
-            customerName, phoneNumber,
+            id: `BK-GROUP-${Date.now()}`, 
+            bookingIds: successfulBookingIds, // ส่ง ID จริงจาก DB ไปด้วย
+            customerName, 
+            phoneNumber,
             date: displayDateThai,
             price: totalPrice,
             courtName: selectedSlots.map(s => {
@@ -242,10 +245,11 @@ export default function BookingPage() {
             }).join(', '), 
             time: selectedSlots.map(s => timeSlots[s.timeIndex] + " น.").join(', '),
             status: 'pending',
-            timestamp: format(new Date(), "dd MMM yy, HH:mm น.", { locale: th }) 
         };
 
         localStorage.setItem('tempBooking', JSON.stringify(bookingDetails));
+        
+        // ไปหน้าจ่ายเงิน
         router.push(`/payment?price=${totalPrice}&count=${selectedSlots.length}`);
         
       } catch (error) {
