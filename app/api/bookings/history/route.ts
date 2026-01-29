@@ -2,24 +2,28 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// ✅ เพิ่มบรรทัดนี้เพื่อแก้ปัญหา Build Error บน Vercel ค่ะ
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const phone = searchParams.get('phone');
-
-  if (!phone) {
-    return NextResponse.json([]); // ถ้าไม่มีเบอร์โทร ส่ง array ว่างกลับไป
-  }
-
   try {
+    const { searchParams } = new URL(request.url);
+    const phone = searchParams.get('phone');
+
+    if (!phone) {
+      return NextResponse.json([]); // ถ้าไม่มีเบอร์โทร ส่ง array ว่างกลับไป
+    }
+
     const bookings = await prisma.booking.findMany({
       where: {
-        phoneNumber: phone, // ค้นหาตามเบอร์โทร
+        // ใช้ contains เพื่อให้ค้นหาเจอแม้พิมพ์ไม่ครบ (Optional) หรือจะใช้แบบเดิมก็ได้
+        phoneNumber: { contains: phone }, 
       },
       include: {
         court: true, // ดึงชื่อสนามมาด้วย
       },
       orderBy: {
-        createdAt: 'desc', // เรียงจากล่าสุดไปเก่าสุด
+        date: 'desc', // แนะนำให้เรียงตาม "วันที่จอง" (ล่าสุดอยู่บน) จะดูง่ายกว่า createdAt ค่ะ
       },
     });
     
