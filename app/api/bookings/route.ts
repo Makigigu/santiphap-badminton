@@ -25,11 +25,11 @@ async function sendLineNotify(message: string) {
   }
 }
 
-// 1. GET: ดึงข้อมูลการจองทั้งหมด (ใช้เช็คตารางว่าว่างไหม)
+// 1. GET: ดึงข้อมูลการจองทั้งหมด
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
-      include: { court: true }, // ดึงข้อมูลสนามมาด้วย
+      include: { court: true }, 
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(bookings);
@@ -38,7 +38,7 @@ export async function GET() {
   }
 }
 
-// 2. PATCH: แก้ไขสถานะ (ใช้ตอน Admin กดยืนยัน หรือ User แนบสลิป)
+// 2. PATCH: แก้ไขสถานะ
 export async function PATCH(request: Request) {
   try {
     const { id, status, date, startTime, courtId, slipUrl } = await request.json();
@@ -48,7 +48,7 @@ export async function PATCH(request: Request) {
     if (date) dataToUpdate.date = new Date(date);
     if (startTime) dataToUpdate.startTime = startTime;
     if (courtId) dataToUpdate.courtId = parseInt(courtId);
-    if (slipUrl) dataToUpdate.slipUrl = slipUrl; // รองรับการอัปเดตสลิปทีหลัง
+    if (slipUrl) dataToUpdate.slipUrl = slipUrl; 
 
     const updatedBooking = await prisma.booking.update({
       where: { id: id },
@@ -60,14 +60,13 @@ export async function PATCH(request: Request) {
   }
 }
 
-// 3. POST: สร้างการจองใหม่ (จองทันทีเมื่อกดปุ่มยืนยัน)
+// 3. POST: สร้างการจองใหม่
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    // รับ courtId โดยตรง ไม่ต้องไปตัด String จากชื่อสนามแล้ว
     const { customerName, phoneNumber, date, startTime, price, slipUrl, courtId } = body;
 
-    // 3.1 หาข้อมูลสนามก่อน (เพื่อเอาชื่อสนามไปส่ง LINE)
+    // 3.1 หาข้อมูลสนามก่อน
     const court = await prisma.court.findUnique({
         where: { id: Number(courtId) }
     });
@@ -76,13 +75,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Court not found' }, { status: 400 });
     }
 
-    // 3.2 เช็คจองซ้อน (Double Booking Check)
+    // 3.2 เช็คจองซ้อน
     const conflictingBooking = await prisma.booking.findFirst({
       where: {
         courtId: Number(courtId),
         date: new Date(date),
-        startTime: startTime, // เช็คเวลาชนกันเป๊ะๆ
-        status: { not: 'rejected' } // ถ้ายังไม่ถูกปฏิเสธ ถือว่าไม่ว่าง
+        startTime: startTime, 
+        status: { notIn: ['rejected', 'cancelled', 'REJECTED', 'CANCELLED'] } // แก้ไขเพิ่มสถานะให้ครอบคลุม
       }
     });
 
@@ -90,7 +89,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'เสียใจด้วย! ช่วงเวลานี้ถูกจองตัดหน้าไปแล้ว' }, { status: 409 });
     }
 
-    // 3.3 บันทึกการจอง (สถานะ PENDING) -> สนามจะเป็นสีแดงทันที
+    // 3.3 บันทึกการจอง
     const newBooking = await prisma.booking.create({
       data: {
         customerName,
@@ -98,13 +97,13 @@ export async function POST(request: Request) {
         date: new Date(date),
         startTime,
         price: Number(price),
-        slipUrl: slipUrl || null, // ถ้ายังไม่มีสลิป (จองก่อนจ่าย) ให้เป็น null
+        slipUrl: slipUrl || null,
         status: 'PENDING',
         courtId: court.id,
       },
     });
 
-    // 3.4 ส่ง LINE Notify (แจ้งเตือนว่ามีการจองเข้ามา)
+    // 3.4 ส่ง LINE Notify
     const formattedDate = new Date(date).toLocaleDateString('th-TH', {
         year: 'numeric', month: 'long', day: 'numeric'
     });
@@ -120,12 +119,36 @@ export async function POST(request: Request) {
 สถานะ: รอตรวจสอบ (Pending)
 `.trim();
 
-    // ไม่ต้อง await ก็ได้ เพื่อให้ API ตอบกลับเร็วๆ
     sendLineNotify(msg);
 
     return NextResponse.json(newBooking);
   } catch (error) {
     console.error("Booking Error:", error);
     return NextResponse.json({ error: 'Error creating booking' }, { status: 500 });
+  }
+}
+
+// ✅ 4. DELETE: ลบรายการจอง (เพิ่มใหม่)
+export async function DELETE(request: Request) {
+  try {
+    const { id, mode } = await request.json();
+
+    if (mode === 'ALL') {
+      // กรณีลบทั้งหมด (Delete All) - ระวัง! ข้อมูลหายหมด
+      await prisma.booking.deleteMany({}); 
+      return NextResponse.json({ message: 'Deleted all bookings' });
+    } 
+    else if (id) {
+      // กรณีลบทีละรายการ
+      await prisma.booking.delete({
+        where: { id: String(id) },
+      });
+      return NextResponse.json({ message: 'Deleted successfully' });
+    }
+
+    return NextResponse.json({ error: 'Missing ID or Mode' }, { status: 400 });
+  } catch (error) {
+    console.error("Delete Error:", error);
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 }
