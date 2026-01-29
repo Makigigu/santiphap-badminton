@@ -7,7 +7,6 @@ import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
 
 // --- Types ---
-// 1. เพิ่ม Type สำหรับวันปิด
 type CourtClosure = {
   id: number;
   startDate: string;
@@ -19,7 +18,7 @@ type Court = {
   name: string;
   type: string;
   price: number;
-  closures: CourtClosure[]; // 2. เพิ่ม closures เข้าไปใน Court
+  closures: CourtClosure[];
 };
 
 type ExistingBooking = {
@@ -50,6 +49,10 @@ export default function BookingPage() {
   const [courts, setCourts] = useState<Court[]>([]);
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ 1. เพิ่ม State สำหรับสถานะกำลังประมวลผล (กดปุ่มแล้วหมุนติ้วๆ)
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [minDate, setMinDate] = useState<string>('');
   const [displayDateThai, setDisplayDateThai] = useState('');
@@ -58,25 +61,29 @@ export default function BookingPage() {
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  useEffect(() => {
-    async function initData() {
-      try {
-        const [courtsRes, bookingsRes] = await Promise.all([
-            // 3. ใส่ { cache: 'no-store' } เพื่อแก้ปัญหาข้อมูลไม่อัปเดต
-            fetch('/api/courts', { cache: 'no-store' }),
-            fetch('/api/bookings', { cache: 'no-store' })
-        ]);
-        
-        if (courtsRes.ok) setCourts(await courtsRes.json());
-        if (bookingsRes.ok) setExistingBookings(await bookingsRes.json());
-
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
+  // แยกฟังก์ชันโหลดข้อมูลออกมา เพื่อเรียกใช้ซ้ำได้ง่ายๆ
+  async function fetchLatestData() {
+    try {
+      const [courtsRes, bookingsRes] = await Promise.all([
+         fetch('/api/courts', { cache: 'no-store' }),
+         fetch('/api/bookings', { cache: 'no-store' })
+      ]);
+      
+      if (courtsRes.ok) setCourts(await courtsRes.json());
+      if (bookingsRes.ok) setExistingBookings(await bookingsRes.json());
+      return true;
+    } catch (error) {
+      console.error("Error:", error);
+      return false;
     }
-    initData();
+  }
+
+  useEffect(() => {
+    async function init() {
+        await fetchLatestData();
+        setLoading(false);
+    }
+    init();
 
     const d = new Date();
     const year = d.getFullYear();
@@ -165,27 +172,72 @@ export default function BookingPage() {
       return sum + (court ? court.price : 0);
   }, 0);
 
-  const handleConfirmBooking = () => {
+  // ✅ 2. ปรับปรุงฟังก์ชันยืนยันการจอง
+  const handleConfirmBooking = async () => {
       if (!customerName.trim()) { alert("กรุณากรอกชื่อลูกค้า"); return; }
       if (!phoneNumber.trim()) { alert("กรุณากรอกเบอร์โทรศัพท์"); return; }
       if (phoneNumber.length < 9) { alert("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง"); return; }
 
-      const bookingDetails = {
-          id: `BK-${Date.now()}`, 
-          customerName, phoneNumber,
-          date: displayDateThai,
-          price: totalPrice,
-          courtName: selectedSlots.map(s => {
-             const c = courts.find(court => court.id === s.courtId);
-             return c ? c.name.replace('COURT', 'สนาม') : '';
-          }).join(', '), 
-          time: selectedSlots.map(s => timeSlots[s.timeIndex] + " น.").join(', '),
-          status: 'pending',
-          timestamp: format(new Date(), "dd MMM yy, HH:mm น.", { locale: th }) 
-      };
+      // เริ่มสถานะประมวลผล (ล็อคปุ่ม)
+      setIsProcessing(true);
 
-      localStorage.setItem('tempBooking', JSON.stringify(bookingDetails));
-      router.push(`/payment?price=${totalPrice}&count=${selectedSlots.length}`);
+      try {
+        // --- Double Check: ดึงข้อมูลล่าสุดจาก Server เดี๋ยวนี้เลย ---
+        const bookingsRes = await fetch('/api/bookings', { cache: 'no-store' });
+        if (!bookingsRes.ok) throw new Error("เช็คสถานะไม่สำเร็จ");
+        
+        const latestBookings: ExistingBooking[] = await bookingsRes.json();
+
+        // ตรวจสอบว่า Slot ที่เราเลือก มีใครจองไปแล้วหรือยัง (ในวินาทีสุดท้าย)
+        const hasConflict = selectedSlots.some(mySlot => {
+            const slotTimeStr = timeSlots[mySlot.timeIndex];
+            const slotStartHour = parseInt(slotTimeStr.split(':')[0]);
+
+            return latestBookings.some(b => {
+                const bookingDate = format(new Date(b.date), 'yyyy-MM-dd');
+                const isTimeMatch = b.startTime.includes(slotTimeStr) || 
+                                    parseInt(b.startTime.split(':')[0]) === slotStartHour;
+                
+                return bookingDate === selectedDate &&
+                       b.courtId === mySlot.courtId &&
+                       isTimeMatch &&
+                       b.status !== 'rejected';
+            });
+        });
+
+        if (hasConflict) {
+            alert("⚠️ เสียใจด้วย! มีลูกค้าท่านอื่นจองตัดหน้าไปแล้วครับ \nระบบจะรีโหลดข้อมูลใหม่ กรุณาเลือกเวลาอื่น");
+            await fetchLatestData(); // รีโหลดหน้าจอเพื่อให้เห็นว่าอันไหนเต็มแล้ว
+            setSelectedSlots([]);   // ล้างที่เลือกไว้
+            setIsProcessing(false); // ปลดล็อคปุ่ม
+            return; // จบการทำงาน ไม่ไปต่อ
+        }
+
+        // --- ถ้าไม่มีการชนกัน ไปต่อได้ ---
+        const bookingDetails = {
+            id: `BK-${Date.now()}`, 
+            customerName, phoneNumber,
+            date: displayDateThai,
+            price: totalPrice,
+            courtName: selectedSlots.map(s => {
+               const c = courts.find(court => court.id === s.courtId);
+               return c ? c.name.replace('COURT', 'สนาม') : '';
+            }).join(', '), 
+            time: selectedSlots.map(s => timeSlots[s.timeIndex] + " น.").join(', '),
+            status: 'pending',
+            timestamp: format(new Date(), "dd MMM yy, HH:mm น.", { locale: th }) 
+        };
+
+        localStorage.setItem('tempBooking', JSON.stringify(bookingDetails));
+        router.push(`/payment?price=${totalPrice}&count=${selectedSlots.length}`);
+        
+        // ไม่ต้อง setIsProcessing(false) เพราะเดี๋ยวเปลี่ยนหน้าแล้ว
+
+      } catch (error) {
+          console.error(error);
+          alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+          setIsProcessing(false);
+      }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-slate-500">กำลังโหลดข้อมูล...</div>;
@@ -245,7 +297,6 @@ export default function BookingPage() {
         <div className="overflow-x-auto pb-6">
             <div className={`min-w-[1000px] grid gap-4 px-1 ${displayedCourts.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-6'}`}>
                 {displayedCourts.map((court) => {
-                    // 4. Logic สำคัญ: ตรวจสอบว่า "วันที่เลือก" อยู่ในช่วง "ปิดสนาม" หรือไม่
                     const isClosedMaintenance = court.closures?.some(closure => {
                         const start = format(new Date(closure.startDate), 'yyyy-MM-dd');
                         const end = format(new Date(closure.endDate), 'yyyy-MM-dd');
@@ -255,7 +306,6 @@ export default function BookingPage() {
                     return (
                         <div key={court.id} className={`bg-white rounded-t-xl overflow-hidden border border-slate-200 shadow-md relative ${isClosedMaintenance ? 'opacity-60 pointer-events-none' : ''}`}>
                             
-                            {/* 5. แสดง Overlay ทับสนามถ้าปิดปรับปรุง */}
                             {isClosedMaintenance && (
                                 <div className="absolute inset-0 z-20 bg-slate-100/90 flex flex-col items-center justify-center text-slate-500">
                                     <span className="text-3xl mb-2">🛠️</span>
@@ -356,11 +406,11 @@ export default function BookingPage() {
                     <div className="space-y-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-500 mb-2 pl-2">ชื่อลูกค้า <span className="text-red-500">*</span> :</label>
-                            <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium transition-all" placeholder="ระบุชื่อผู้จอง" />
+                            <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} disabled={isProcessing} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium transition-all disabled:opacity-50" placeholder="ระบุชื่อผู้จอง" />
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-500 mb-2 pl-2">เบอร์โทร <span className="text-red-500">*</span> :</label>
-                            <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium transition-all" placeholder="0xx-xxx-xxxx" />
+                            <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} disabled={isProcessing} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium transition-all disabled:opacity-50" placeholder="0xx-xxx-xxxx" />
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-500 mb-3 pl-2">วิธีการชำระเงิน :</label>
@@ -372,7 +422,26 @@ export default function BookingPage() {
                             </div>
                         </div>
                         <div className="pt-2">
-                            <button onClick={handleConfirmBooking} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-blue-700 active:scale-95 transition-all">ยืนยันการจอง</button>
+                            {/* ✅ ปุ่มจะถูก Disable เมื่อกำลังประมวลผล */}
+                            <button 
+                                onClick={handleConfirmBooking} 
+                                disabled={isProcessing}
+                                className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex justify-center items-center gap-2
+                                    ${isProcessing ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'}
+                                `}
+                            >
+                                {isProcessing ? (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        กำลังตรวจสอบความถูกต้อง...
+                                    </>
+                                ) : (
+                                    "ยืนยันการจอง"
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
