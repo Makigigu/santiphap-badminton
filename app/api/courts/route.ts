@@ -17,7 +17,7 @@ export async function GET() {
   }
 }
 
-// 2. POST: สร้างสนามใหม่ (✅ เพิ่มส่วนนี้เพื่อให้ปุ่มเพิ่มสนามใช้งานได้)
+// 2. POST: สร้างสนามใหม่
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -28,8 +28,7 @@ export async function POST(request: Request) {
         name,
         type,
         price: Number(price), // แปลงเป็นตัวเลขให้ชัวร์
-        openTime: "08:00",    // ค่าเริ่มต้นเวลาเปิด
-        closeTime: "22:00",   // ค่าเริ่มต้นเวลาปิด
+        // ❌ เอา openTime และ closeTime ออกแล้ว (เพื่อให้ตรงกับ Database ปัจจุบัน)
       },
     });
     return NextResponse.json(newCourt);

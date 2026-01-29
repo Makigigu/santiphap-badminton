@@ -13,6 +13,8 @@ model Court {
   type      String
   price     Int
   isAvailable Boolean   @default(true)
+  openTime    String   @default("08:00")
+  closeTime   String   @default("22:00")
   bookings  Booking[]
   closures  CourtClosure[]
 }
