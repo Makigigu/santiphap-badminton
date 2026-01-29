@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// ✅ บรรทัดนี้สำคัญมาก ห้ามลบ (แก้ปัญหา Deploy แล้ว Error)
 export const dynamic = 'force-dynamic';
 
-// GET: ดึงข้อมูลสนามทั้งหมด
+// 1. GET: ดึงข้อมูลสนามทั้งหมด
 export async function GET() {
   try {
     const courts = await prisma.court.findMany({
@@ -16,37 +17,58 @@ export async function GET() {
   }
 }
 
-// PATCH: อัปเดตข้อมูลสนาม (ราคา, วันปิด, *ชื่อ, *รายละเอียด)
+// 2. POST: สร้างสนามใหม่ (✅ เพิ่มส่วนนี้เพื่อให้ปุ่มเพิ่มสนามใช้งานได้)
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { name, type, price } = body;
+
+    const newCourt = await prisma.court.create({
+      data: {
+        name,
+        type,
+        price: Number(price), // แปลงเป็นตัวเลขให้ชัวร์
+        openTime: "08:00",    // ค่าเริ่มต้นเวลาเปิด
+        closeTime: "22:00",   // ค่าเริ่มต้นเวลาปิด
+      },
+    });
+    return NextResponse.json(newCourt);
+  } catch (error) {
+    console.error("Create court error:", error);
+    return NextResponse.json({ error: 'Failed to create court' }, { status: 500 });
+  }
+}
+
+// 3. PATCH: อัปเดตข้อมูลสนาม (ราคา, วันปิด, ชื่อ, รายละเอียด)
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, price, closures, name, type } = body; // รับค่า name และ type เพิ่ม
+    const { id, price, closures, name, type } = body;
 
-    // 1. เตรียมข้อมูลที่จะอัปเดต
+    // เตรียมข้อมูลที่จะอัปเดต
     const dataToUpdate: any = {};
-    if (price !== undefined) dataToUpdate.price = price;
+    if (price !== undefined) dataToUpdate.price = Number(price); // แปลงเป็นตัวเลข
     if (name !== undefined) dataToUpdate.name = name;
     if (type !== undefined) dataToUpdate.type = type;
 
-    // 2. อัปเดตข้อมูลสนาม (ชื่อ, ประเภท, ราคา)
+    // อัปเดตข้อมูลพื้นฐานสนาม
     const updatedCourt = await prisma.court.update({
-      where: { id },
+      where: { id: Number(id) },
       data: dataToUpdate,
     });
 
-    // 3. ถ้ามีการส่งข้อมูลวันปิดปรับปรุงมาด้วย ให้จัดการตาราง Closures
+    // ถ้ามีการส่งข้อมูลวันปิดปรับปรุงมาด้วย ให้จัดการตาราง Closures
     if (closures) {
-        // ลบอันเก่าที่ user ลบออกจากหน้าเว็บ (หรือลบทั้งหมดแล้วสร้างใหม่ก็ได้ แต่วิธีนี้ง่ายกว่าสำหรับการจัดการ state)
-        // เพื่อความง่าย: ลบ closure ทั้งหมดของสนามนี้ก่อน แล้วสร้างใหม่ตามที่ส่งมา
-        // (วิธีนี้อาจไม่ optimized ที่สุดแต่ชัวร์เรื่องข้อมูลตรงกัน)
+        // ลบวันปิดเก่าออกทั้งหมดของสนามนี้
         await prisma.courtClosure.deleteMany({
-            where: { courtId: id }
+            where: { courtId: Number(id) }
         });
 
+        // สร้างรายการวันปิดใหม่
         if (closures.length > 0) {
             await prisma.courtClosure.createMany({
                 data: closures.map((c: any) => ({
-                    courtId: id,
+                    courtId: Number(id),
                     startDate: new Date(c.startDate),
                     endDate: new Date(c.endDate)
                 }))
