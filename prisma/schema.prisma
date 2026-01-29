@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Court {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String
+  price     Int
+  isAvailable Boolean   @default(true)
+  bookings  Booking[]
+  closures  CourtClosure[]
+}
+
+model Booking {
+  id           String   @id @default(uuid())
+  customerName String
+  phoneNumber  String
+  date         DateTime
+  startTime    String
+  status       String   @default("PENDING")
+  slipUrl      String?  @db.LongText
+  price        Int
+  createdAt    DateTime @default(now())
+  courtId      Int
+  court        Court    @relation(fields: [courtId], references: [id])
+}
+
+model Admin {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String
+}
+
+model CourtClosure {
+  id        Int      @id @default(autoincrement())
+  startDate DateTime
+  endDate   DateTime
+  courtId   Int
+  court     Court    @relation(fields: [courtId], references: [id])
+}
