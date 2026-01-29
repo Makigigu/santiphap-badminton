@@ -2,6 +2,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// ✅ เพิ่มบรรทัดนี้เพื่อแก้ปัญหา Build Error บน Vercel
+export const dynamic = 'force-dynamic';
+
 // เพิ่มช่วงเวลาปิด
 export async function POST(request: Request) {
   try {
