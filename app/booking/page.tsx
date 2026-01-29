@@ -50,7 +50,7 @@ export default function BookingPage() {
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // ✅ 1. เพิ่ม State สำหรับสถานะกำลังประมวลผล (กดปุ่มแล้วหมุนติ้วๆ)
+  // State สำหรับล็อคปุ่มขณะประมวลผล
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -61,7 +61,7 @@ export default function BookingPage() {
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  // แยกฟังก์ชันโหลดข้อมูลออกมา เพื่อเรียกใช้ซ้ำได้ง่ายๆ
+  // ฟังก์ชันโหลดข้อมูล (ใช้ตอนเริ่ม และตอนจองพลาดเพื่อรีเฟรชข้อมูล)
   async function fetchLatestData() {
     try {
       const [courtsRes, bookingsRes] = await Promise.all([
@@ -172,48 +172,65 @@ export default function BookingPage() {
       return sum + (court ? court.price : 0);
   }, 0);
 
-  // ✅ 2. ปรับปรุงฟังก์ชันยืนยันการจอง
+  // ✅ แก้ไข: ฟังก์ชันนี้จะทำการ "จองจริง" ทันที เพื่อล็อคคิว
   const handleConfirmBooking = async () => {
       if (!customerName.trim()) { alert("กรุณากรอกชื่อลูกค้า"); return; }
       if (!phoneNumber.trim()) { alert("กรุณากรอกเบอร์โทรศัพท์"); return; }
       if (phoneNumber.length < 9) { alert("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง"); return; }
 
-      // เริ่มสถานะประมวลผล (ล็อคปุ่ม)
       setIsProcessing(true);
 
       try {
-        // --- Double Check: ดึงข้อมูลล่าสุดจาก Server เดี๋ยวนี้เลย ---
-        const bookingsRes = await fetch('/api/bookings', { cache: 'no-store' });
-        if (!bookingsRes.ok) throw new Error("เช็คสถานะไม่สำเร็จ");
-        
-        const latestBookings: ExistingBooking[] = await bookingsRes.json();
+        // วนลูปยิง API เพื่อจองทีละรายการ (Database จะสร้าง record สถานะ PENDING ทันที)
+        const bookingPromises = selectedSlots.map(slot => {
+            const timeString = timeSlots[slot.timeIndex];
+            const court = courts.find(c => c.id === slot.courtId);
+            const price = court ? court.price : 0;
 
-        // ตรวจสอบว่า Slot ที่เราเลือก มีใครจองไปแล้วหรือยัง (ในวินาทีสุดท้าย)
-        const hasConflict = selectedSlots.some(mySlot => {
-            const slotTimeStr = timeSlots[mySlot.timeIndex];
-            const slotStartHour = parseInt(slotTimeStr.split(':')[0]);
-
-            return latestBookings.some(b => {
-                const bookingDate = format(new Date(b.date), 'yyyy-MM-dd');
-                const isTimeMatch = b.startTime.includes(slotTimeStr) || 
-                                    parseInt(b.startTime.split(':')[0]) === slotStartHour;
-                
-                return bookingDate === selectedDate &&
-                       b.courtId === mySlot.courtId &&
-                       isTimeMatch &&
-                       b.status !== 'rejected';
+            return fetch('/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerName,
+                    phoneNumber,
+                    date: selectedDate, // ส่งวันที่ yyyy-mm-dd ไป
+                    startTime: timeString,
+                    price: price,
+                    courtId: slot.courtId
+                })
             });
         });
 
-        if (hasConflict) {
-            alert("⚠️ เสียใจด้วย! มีลูกค้าท่านอื่นจองตัดหน้าไปแล้วครับ \nระบบจะรีโหลดข้อมูลใหม่ กรุณาเลือกเวลาอื่น");
-            await fetchLatestData(); // รีโหลดหน้าจอเพื่อให้เห็นว่าอันไหนเต็มแล้ว
-            setSelectedSlots([]);   // ล้างที่เลือกไว้
-            setIsProcessing(false); // ปลดล็อคปุ่ม
-            return; // จบการทำงาน ไม่ไปต่อ
+        // รอผลลัพธ์ทั้งหมด
+        const responses = await Promise.all(bookingPromises);
+        
+        // ตรวจสอบว่ามีรายการไหนพังไหม (เช่น โดนแย่งจอง = 409)
+        let hasError = false;
+        let isConflict = false;
+
+        for (const res of responses) {
+            if (!res.ok) {
+                hasError = true;
+                if (res.status === 409) isConflict = true;
+            }
         }
 
-        // --- ถ้าไม่มีการชนกัน ไปต่อได้ ---
+        if (hasError) {
+             if (isConflict) {
+                 alert("⚠️ เสียใจด้วย! มีบางช่วงเวลาถูกจองตัดหน้าไปแล้ว\nระบบจะรีโหลดข้อมูลใหม่ กรุณาเลือกเวลาอื่น");
+             } else {
+                 alert("เกิดข้อผิดพลาดในการจอง กรุณาลองใหม่อีกครั้ง");
+             }
+             // รีโหลดข้อมูลใหม่เพื่อให้เห็นว่าตรงไหนไม่ว่างแล้ว
+             await fetchLatestData(); 
+             setSelectedSlots([]);
+             setIsProcessing(false);
+             return;
+        }
+
+        // ✅ จองสำเร็จทั้งหมด! (ตอนนี้ใน DB มีข้อมูลแล้ว สนามเป็นสีแดงแล้ว)
+        
+        // เตรียมข้อมูลไว้โชว์หน้า Payment (เอาแค่ไว้โชว์ เพราะข้อมูลจริงอยู่ DB แล้ว)
         const bookingDetails = {
             id: `BK-${Date.now()}`, 
             customerName, phoneNumber,
@@ -231,8 +248,6 @@ export default function BookingPage() {
         localStorage.setItem('tempBooking', JSON.stringify(bookingDetails));
         router.push(`/payment?price=${totalPrice}&count=${selectedSlots.length}`);
         
-        // ไม่ต้อง setIsProcessing(false) เพราะเดี๋ยวเปลี่ยนหน้าแล้ว
-
       } catch (error) {
           console.error(error);
           alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
@@ -422,7 +437,7 @@ export default function BookingPage() {
                             </div>
                         </div>
                         <div className="pt-2">
-                            {/* ✅ ปุ่มจะถูก Disable เมื่อกำลังประมวลผล */}
+                            {/* ปุ่มยืนยันการจอง */}
                             <button 
                                 onClick={handleConfirmBooking} 
                                 disabled={isProcessing}

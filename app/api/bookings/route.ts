@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 // --- ฟังก์ชันสำหรับส่ง LINE Notify ---
-async function sendLineNotify(message: string, imageUrl?: string | null) {
+async function sendLineNotify(message: string) {
   const token = process.env.LINE_NOTIFY_TOKEN;
   if (!token) return;
 
@@ -12,11 +12,6 @@ async function sendLineNotify(message: string, imageUrl?: string | null) {
     const formData = new URLSearchParams();
     formData.append('message', message);
     
-    // if (imageUrl) {
-    //    formData.append('imageThumbnail', imageUrl);
-    //    formData.append('imageFullsize', imageUrl);
-    // }
-
     await fetch('https://notify-api.line.me/api/notify', {
       method: 'POST',
       headers: {
@@ -30,28 +25,30 @@ async function sendLineNotify(message: string, imageUrl?: string | null) {
   }
 }
 
-// GET: ดึงข้อมูล
+// 1. GET: ดึงข้อมูลการจองทั้งหมด (ใช้เช็คตารางว่าว่างไหม)
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
-      include: { court: true },
+      include: { court: true }, // ดึงข้อมูลสนามมาด้วย
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(bookings);
   } catch (error) {
-    return NextResponse.json({ error: 'Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Error fetching bookings' }, { status: 500 });
   }
 }
 
-// PATCH: แก้ไขสถานะ
+// 2. PATCH: แก้ไขสถานะ (ใช้ตอน Admin กดยืนยัน หรือ User แนบสลิป)
 export async function PATCH(request: Request) {
   try {
-    const { id, status, date, startTime, courtId } = await request.json();
+    const { id, status, date, startTime, courtId, slipUrl } = await request.json();
     const dataToUpdate: any = {};
+    
     if (status) dataToUpdate.status = status;
     if (date) dataToUpdate.date = new Date(date);
     if (startTime) dataToUpdate.startTime = startTime;
     if (courtId) dataToUpdate.courtId = parseInt(courtId);
+    if (slipUrl) dataToUpdate.slipUrl = slipUrl; // รองรับการอัปเดตสลิปทีหลัง
 
     const updatedBooking = await prisma.booking.update({
       where: { id: id },
@@ -59,69 +56,71 @@ export async function PATCH(request: Request) {
     });
     return NextResponse.json(updatedBooking);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Update Failed' }, { status: 500 });
   }
 }
 
-// POST: จองสนาม (แก้ไขจุดตัดคำ courtName)
+// 3. POST: สร้างการจองใหม่ (จองทันทีเมื่อกดปุ่มยืนยัน)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { customerName, phoneNumber, date, startTime, price, slipUrl, courtName } = body;
+    // รับ courtId โดยตรง ไม่ต้องไปตัด String จากชื่อสนามแล้ว
+    const { customerName, phoneNumber, date, startTime, price, slipUrl, courtId } = body;
 
-    // 🔥 แก้ไขตรงนี้: ตัด string ด้วยเครื่องหมายจุลภาค (,) แล้วเอาตัวแรกสุด
-    // เพื่อแก้ปัญหา "สนาม 1, สนาม 1, สนาม 1" ให้เหลือแค่ "สนาม 1"
-    const targetCourtName = courtName.split(',')[0].trim();
-
-    // ค้นหาโดยใช้ชื่อที่ตัดคำแล้ว
-    const court = await prisma.court.findFirst({
-        where: { name: { contains: targetCourtName } } 
+    // 3.1 หาข้อมูลสนามก่อน (เพื่อเอาชื่อสนามไปส่ง LINE)
+    const court = await prisma.court.findUnique({
+        where: { id: Number(courtId) }
     });
 
     if (!court) {
-        // Log ดูว่าค่าที่ส่งมา vs ค่าที่เอาไปหา คืออะไร (ช่วย debug)
-        console.error(`Original: "${courtName}" -> Target: "${targetCourtName}" -> Not Found`);
         return NextResponse.json({ error: 'Court not found' }, { status: 400 });
     }
 
-    // เช็คจองซ้อน
+    // 3.2 เช็คจองซ้อน (Double Booking Check)
     const conflictingBooking = await prisma.booking.findFirst({
       where: {
-        courtId: court.id,
+        courtId: Number(courtId),
         date: new Date(date),
-        // สถานะต้องไม่ใช่ rejected และ cancelled
-        status: { notIn: ['rejected', 'cancelled'] }, 
-        startTime: { contains: startTime.split(',')[0].trim() } 
+        startTime: startTime, // เช็คเวลาชนกันเป๊ะๆ
+        status: { not: 'rejected' } // ถ้ายังไม่ถูกปฏิเสธ ถือว่าไม่ว่าง
       }
     });
 
     if (conflictingBooking) {
-      return NextResponse.json({ error: 'ขออภัย ช่วงเวลานี้ถูกจองไปแล้ว' }, { status: 409 });
+      return NextResponse.json({ error: 'เสียใจด้วย! ช่วงเวลานี้ถูกจองตัดหน้าไปแล้ว' }, { status: 409 });
     }
 
-    // บันทึกการจอง
+    // 3.3 บันทึกการจอง (สถานะ PENDING) -> สนามจะเป็นสีแดงทันที
     const newBooking = await prisma.booking.create({
       data: {
-        customerName, phoneNumber,
+        customerName,
+        phoneNumber,
         date: new Date(date),
-        startTime, price, slipUrl,
-        status: 'pending',
+        startTime,
+        price: Number(price),
+        slipUrl: slipUrl || null, // ถ้ายังไม่มีสลิป (จองก่อนจ่าย) ให้เป็น null
+        status: 'PENDING',
         courtId: court.id,
       },
     });
 
-    // ส่ง LINE Notify
+    // 3.4 ส่ง LINE Notify (แจ้งเตือนว่ามีการจองเข้ามา)
+    const formattedDate = new Date(date).toLocaleDateString('th-TH', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    });
+    
     const msg = `
-🏸 มีรายการจองใหม่!
+📣 มีรายการจองใหม่! (รอชำระเงิน)
 👤 ลูกค้า: ${customerName}
 📞 เบอร์: ${phoneNumber}
-🏟️ สนาม: ${courtName}
-📅 วันที่: ${new Date(date).toLocaleDateString('th-TH')}
-⏰ เวลา: ${startTime}
+🏟️ สนาม: ${court.name}
+📅 วันที่: ${formattedDate}
+⏰ เวลา: ${startTime} น.
 💰 ยอดเงิน: ${price} บาท
 สถานะ: รอตรวจสอบ (Pending)
 `.trim();
 
+    // ไม่ต้อง await ก็ได้ เพื่อให้ API ตอบกลับเร็วๆ
     sendLineNotify(msg);
 
     return NextResponse.json(newBooking);
