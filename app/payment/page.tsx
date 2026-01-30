@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // 1. ฟังก์ชันย่อรูป (สำคัญมาก! ช่วยให้ไฟล์เล็กกว่า 4.5MB ไม่ Error 500 แน่นอน)
 const resizeImage = (file: File): Promise<string> => {
@@ -106,9 +107,9 @@ function PaymentContent() {
 
       await Promise.all(updatePromises);
 
-      alert("แจ้งชำระเงินเรียบร้อยแล้ว! \nระบบกำลังตรวจสอบข้อมูล");
+      // ไปหน้า Success (แทน History)
       localStorage.removeItem('tempBooking'); 
-      router.push('/history'); 
+      router.push('/success'); 
 
     } catch (error) {
       console.error(error);
@@ -123,9 +124,12 @@ function PaymentContent() {
       
       <nav className="bg-white shadow-sm sticky top-0 z-20 border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-800 transition">
-              <span>←</span> ย้อนกลับ
-          </button>
+          
+          {/* ✅ ปุ่มกลับหน้าหลัก (แก้ไขแล้ว) */}
+          <Link href="/" className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-800 transition">
+              <span>←</span> กลับหน้าหลัก
+          </Link>
+
           <div className="text-lg font-extrabold text-slate-800">ชำระเงิน</div>
         </div>
       </nav>
