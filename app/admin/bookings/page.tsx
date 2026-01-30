@@ -10,24 +10,26 @@ type Booking = {
   customerName: string;
   phoneNumber: string;
   date: string;
-  startTime: string; // "18:00-19:00, 19:00-20:00"
+  startTime: string; 
   status: string;
   price: number;
+  slipUrl: string | null; // เพิ่ม slipUrl
   createdAt: string;
   court: { id: number; name: string; type: string };
 };
 
 type Court = { id: number; name: string; price: number };
 
+// ✅ 1. แปลงรหัสสถานะเป็นภาษาไทย
 const statusLabels: { [key: string]: string } = {
     all: 'ทั้งหมด',
-    pending: 'รอตรวจสอบ',
-    approved: 'อนุมัติ (จองสำเร็จ)',
-    rejected: 'ปฏิเสธ (สลิปผิด)',
-    cancelled: 'ยกเลิก (ไม่คืนเงิน)'
+    PENDING: 'รอชำระเงิน',
+    PAID_VERIFY: '⏳ รอตรวจสอบสลิป', // แปลงตรงนี้
+    APPROVED: '✅ อนุมัติ',
+    REJECTED: '❌ ปฏิเสธ',
+    CANCELLED: 'ยกเลิก'
 };
 
-// รายการเวลามาตรฐาน
 const timeSlots = [
   "11:00-12:00", "12:00-13:00", "13:00-14:00", "14:00-15:00", 
   "15:00-16:00", "16:00-17:00", "17:00-18:00", "18:00-19:00", 
@@ -41,9 +43,12 @@ export default function BookingsPage() {
   const [filterDate, setFilterDate] = useState<string>(''); 
   const [loading, setLoading] = useState(true);
 
-  // State สำหรับ Modal แก้ไข
+  // Edit Modal State
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   
+  // Image Preview Modal State
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   // Form State
   const [editForm, setEditForm] = useState({ 
       date: '', 
@@ -70,99 +75,53 @@ export default function BookingsPage() {
       if (res.ok) setCourts(await res.json());
   };
 
-  // ✅ ฟังก์ชันลบรายการเดียว (Delete Single)
+  // --- Functions ---
+
   const handleDelete = async (id: string) => {
       if (!confirm('⚠️ คุณต้องการลบรายการนี้ถาวรหรือไม่?')) return;
-
       try {
           const res = await fetch('/api/bookings', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id }),
           });
-
           if (res.ok) {
               alert('ลบรายการเรียบร้อย');
-              setEditingBooking(null); // ปิด Modal
-              fetchData(); // โหลดใหม่
-          } else {
-              alert('ลบไม่สำเร็จ');
-          }
-      } catch (error) {
-          console.error(error);
-          alert('เชื่อมต่อ Server ไม่ได้');
-      }
+              setEditingBooking(null);
+              fetchData();
+          } else { alert('ลบไม่สำเร็จ'); }
+      } catch (error) { console.error(error); alert('เชื่อมต่อ Server ไม่ได้'); }
   };
 
-  // ✅ ฟังก์ชันลบทั้งหมด (Delete All)
   const handleDeleteAll = async () => {
       if (!confirm('🛑 คำเตือน: คุณต้องการลบ "ประวัติการจองทั้งหมด" ใช่หรือไม่?')) return;
       if (!confirm('ข้อมูลจะหายไปถาวรและกู้คืนไม่ได้ ยืนยันที่จะลบหรือไม่?')) return;
-
       try {
           const res = await fetch('/api/bookings', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ mode: 'ALL' }), // ส่ง mode ALL
+              body: JSON.stringify({ mode: 'ALL' }),
           });
-
-          if (res.ok) {
-              alert('ล้างข้อมูลทั้งหมดเรียบร้อย');
-              fetchData();
-          }
-      } catch (error) {
-          console.error(error);
-      }
+          if (res.ok) { alert('ล้างข้อมูลทั้งหมดเรียบร้อย'); fetchData(); }
+      } catch (error) { console.error(error); }
   };
 
   const openEditModal = (booking: Booking) => {
       setEditingBooking(booking);
-      
-      const timesArray = booking.startTime.split(',')
-          .map(t => t.trim().replace(' น.', ''))
-          .filter(t => t !== '');
-
+      const timesArray = booking.startTime.split(',').map(t => t.trim().replace(' น.', '')).filter(t => t !== '');
       setEditForm({
           date: format(new Date(booking.date), 'yyyy-MM-dd'),
           courtId: booking.court.id,
-          status: booking.status,
+          status: booking.status, // เก็บค่าดิบ (เช่น PAID_VERIFY)
           selectedTimes: timesArray
       });
   };
 
-  const toggleTimeSlot = (slot: string) => {
-      setEditForm(prev => {
-          const exists = prev.selectedTimes.includes(slot);
-          if (exists) {
-              return { ...prev, selectedTimes: prev.selectedTimes.filter(t => t !== slot) };
-          } else {
-              return { ...prev, selectedTimes: [...prev.selectedTimes, slot].sort() }; 
-          }
-      });
-  };
-
-  const isSlotOccupied = (slot: string) => {
-      if (!editingBooking) return false;
-
-      const conflicting = bookings.find(b => 
-          b.id !== editingBooking.id && 
-          format(new Date(b.date), 'yyyy-MM-dd') === editForm.date && 
-          b.court.id === editForm.courtId && 
-          b.status !== 'rejected' && 
-          b.status !== 'cancelled' && 
-          b.startTime.includes(slot) 
-      );
-
-      return !!conflicting;
-  };
-
   const handleSaveEdit = async () => {
       if (!editingBooking) return;
-      if (editForm.selectedTimes.length === 0) return alert("กรุณาเลือกเวลาอย่างน้อย 1 ช่วง");
-      if (!confirm("ยืนยันการแก้ไขข้อมูล?")) return;
-
+      if (!confirm("ยืนยันการบันทึกข้อมูล?")) return;
       const combinedStartTime = editForm.selectedTimes.join(', ') + " น.";
-
+      
       try {
           const res = await fetch('/api/bookings', {
               method: 'PATCH',
@@ -175,28 +134,44 @@ export default function BookingsPage() {
                   status: editForm.status,
               })
           });
+          if (res.ok) { alert("บันทึกสำเร็จ"); setEditingBooking(null); fetchData(); }
+      } catch (error) { console.error(error); }
+  };
 
-          if (res.ok) {
-              alert("บันทึกข้อมูลเรียบร้อย");
-              setEditingBooking(null); 
-              fetchData(); 
-          } else {
-              alert("เกิดข้อผิดพลาด หรือช่วงเวลานี้ถูกแย่งจองไปแล้ว");
-          }
-      } catch (error) {
-          console.error(error);
-          alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+  const toggleTimeSlot = (slot: string) => {
+      setEditForm(prev => {
+          const exists = prev.selectedTimes.includes(slot);
+          return exists 
+            ? { ...prev, selectedTimes: prev.selectedTimes.filter(t => t !== slot) }
+            : { ...prev, selectedTimes: [...prev.selectedTimes, slot].sort() };
+      });
+  };
+
+  // Helper: เลือกสี Badge ให้สวยงาม
+  const getStatusBadge = (status: string) => {
+      const s = status.toUpperCase();
+      switch (s) {
+          case 'PAID_VERIFY': 
+              return <span className="bg-yellow-100 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold animate-pulse">⏳ รอตรวจสอบสลิป</span>;
+          case 'PENDING': 
+              return <span className="bg-red-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">💰 รอชำระเงิน</span>;
+          case 'APPROVED': 
+              return <span className="bg-green-100 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-bold">✅ อนุมัติ</span>;
+          case 'REJECTED': 
+              return <span className="bg-slate-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">❌ ปฏิเสธ</span>;
+          default: 
+              return <span className="bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
       }
   };
 
   // Logic Grouping
   const groupedBookings = useMemo(() => {
     const filtered = bookings.filter(b => {
-        const matchesStatus = filterStatus === 'all' || b.status === filterStatus;
+        // แก้ไข: เทียบ Status แบบ Case-Insensitive (ตัวพิมพ์เล็ก/ใหญ่ ก็ให้เจอหมด)
+        const matchesStatus = filterStatus === 'all' || b.status.toUpperCase() === filterStatus.toUpperCase();
         let matchesDate = true;
         if (filterDate) {
-            const bookingDateStr = format(new Date(b.date), 'yyyy-MM-dd');
-            matchesDate = bookingDateStr === filterDate;
+            matchesDate = format(new Date(b.date), 'yyyy-MM-dd') === filterDate;
         }
         return matchesStatus && matchesDate;
     });
@@ -216,9 +191,16 @@ export default function BookingsPage() {
   if (loading) return <div className="p-10 text-center text-slate-500">กำลังโหลดข้อมูล...</div>;
 
   return (
-    <div className="space-y-6 animate-fade-in relative p-6">
+    <div className="space-y-6 animate-fade-in relative p-6 bg-slate-50 min-h-screen">
         
-        {/* --- Modal แก้ไขข้อมูล --- */}
+        {/* Image Modal (ดูสลิปเต็มจอ) */}
+        {previewImage && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 cursor-pointer" onClick={() => setPreviewImage(null)}>
+                <img src={previewImage} alt="Slip Full" className="max-h-screen object-contain" />
+            </div>
+        )}
+
+        {/* Edit Modal */}
         {editingBooking && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-scale-in max-h-[95vh] overflow-y-auto">
@@ -228,7 +210,6 @@ export default function BookingsPage() {
                     </div>
                     
                     <div className="space-y-5">
-                        {/* Info ลูกค้า */}
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center">
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase">ลูกค้า</label>
@@ -236,85 +217,51 @@ export default function BookingsPage() {
                                 <div className="text-slate-500 text-sm">{editingBooking.phoneNumber}</div>
                             </div>
                             <div className="text-right">
-                                <label className="text-xs font-bold text-slate-500 uppercase">ราคารวม</label>
                                 <div className="text-blue-600 font-extrabold text-xl">
                                     {(courts.find(c => c.id === editForm.courtId)?.price || 0) * editForm.selectedTimes.length}.-
                                 </div>
                             </div>
                         </div>
 
-                        {/* Status */}
+                        {/* ดูสลิปใน Modal */}
+                        {editingBooking.slipUrl && (
+                            <div className="text-center">
+                                <label className="text-xs font-bold text-slate-500 mb-2 block">หลักฐานการโอน</label>
+                                <img 
+                                    src={editingBooking.slipUrl} 
+                                    alt="Slip" 
+                                    className="h-32 mx-auto rounded-lg border cursor-pointer hover:opacity-80 transition"
+                                    onClick={() => setPreviewImage(editingBooking.slipUrl)}
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1">(คลิกเพื่อขยาย)</p>
+                            </div>
+                        )}
+
                         <div>
-                            <label className="text-sm font-bold text-slate-700 mb-1 block">สถานะ</label>
+                            <label className="text-sm font-bold text-slate-700 mb-1 block">เปลี่ยนสถานะ</label>
                             <select 
                                 value={editForm.status}
                                 onChange={e => setEditForm({...editForm, status: e.target.value})}
-                                className={`w-full border-2 rounded-lg p-2 font-bold ${
-                                    editForm.status === 'approved' ? 'border-green-200 bg-green-50 text-green-700' :
-                                    editForm.status === 'rejected' ? 'border-red-200 bg-red-50 text-red-700' :
-                                    editForm.status === 'cancelled' ? 'border-slate-300 bg-slate-100 text-slate-600' :
-                                    'border-orange-200 bg-orange-50 text-orange-700'
-                                }`}
+                                className="w-full border-2 rounded-lg p-2 font-bold bg-white text-slate-700"
                             >
-                                <option value="pending">รอตรวจสอบ</option>
-                                <option value="approved">อนุมัติ (Active)</option>
-                                <option value="rejected">ปฏิเสธ (สลิปใช้ไม่ได้)</option>
-                                <option value="cancelled">ยกเลิก (ไม่คืนเงิน)</option>
+                                <option value="PENDING">🔴 รอชำระเงิน (ยังไม่ส่งสลิป)</option>
+                                <option value="PAID_VERIFY">🟡 รอตรวจสอบสลิป</option>
+                                <option value="APPROVED">🟢 อนุมัติ (เรียบร้อย)</option>
+                                <option value="REJECTED">❌ ปฏิเสธ (สลิปผิด)</option>
+                                <option value="CANCELLED">⚪ ยกเลิก</option>
                             </select>
                         </div>
 
-                        {/* วันที่และสนาม */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-sm font-bold text-slate-500 mb-1 block">วันที่</label>
-                                <input 
-                                    type="date" 
-                                    value={editForm.date}
-                                    onChange={e => setEditForm({...editForm, date: e.target.value, selectedTimes: []})}
-                                    className="w-full border border-slate-300 rounded-lg p-2 text-slate-700"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-sm font-bold text-slate-500 mb-1 block">สนาม</label>
-                                <select 
-                                    value={editForm.courtId}
-                                    onChange={e => setEditForm({...editForm, courtId: parseInt(e.target.value), selectedTimes: []})}
-                                    className="w-full border border-slate-300 rounded-lg p-2 text-slate-700"
-                                >
-                                    {courts.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name.replace('COURT', 'สนาม')}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* เวลา */}
+                        {/* เลือกเวลา (เหมือนเดิม) */}
                         <div>
-                            <label className="text-sm font-bold text-slate-500 mb-2 block flex justify-between">
-                                <span>เวลาที่ต้องการ (เลือกได้หลายช่วง)</span>
-                                <span className="text-xs font-normal text-slate-400">สีแดง = ไม่ว่าง</span>
-                            </label>
+                            <label className="text-sm font-bold text-slate-500 mb-2 block">เวลาจอง</label>
                             <div className="grid grid-cols-3 gap-2">
                                 {timeSlots.map(slot => {
-                                    const occupied = isSlotOccupied(slot);
                                     const selected = editForm.selectedTimes.includes(slot);
-
                                     return (
-                                        <button
-                                            key={slot}
-                                            disabled={occupied}
-                                            onClick={() => toggleTimeSlot(slot)}
-                                            className={`
-                                                text-xs py-2 px-1 rounded-lg border font-bold transition-all
-                                                ${occupied 
-                                                    ? 'bg-red-50 text-red-300 border-red-100 cursor-not-allowed' 
-                                                    : selected 
-                                                        ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-105'
-                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
-                                                }
-                                            `}
-                                        >
-                                            {slot} {occupied && '🚫'}
+                                        <button key={slot} onClick={() => toggleTimeSlot(slot)}
+                                            className={`text-xs py-2 px-1 rounded-lg border font-bold transition-all ${selected ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'}`}>
+                                            {slot}
                                         </button>
                                     )
                                 })}
@@ -323,64 +270,36 @@ export default function BookingsPage() {
                     </div>
 
                     <div className="flex gap-3 mt-8 pt-4 border-t">
-                        {/* 🗑️ ปุ่มลบ (อยู่ซ้ายสุด สีแดง) */}
-                        <button 
-                            onClick={() => handleDelete(editingBooking.id)}
-                            className="py-3 px-4 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 font-bold transition flex items-center justify-center gap-2"
-                            title="ลบรายการนี้ถาวร"
-                        >
+                        <button onClick={() => handleDelete(editingBooking.id)} className="py-3 px-4 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 font-bold transition flex items-center justify-center gap-2">
                             <span>🗑️</span> ลบ
                         </button>
-
-                        <div className="flex-1"></div> {/* Spacer ดันปุ่มขวา */}
-
-                        <button onClick={() => setEditingBooking(null)} className="py-3 px-6 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition">ยกเลิก</button>
-                        <button onClick={handleSaveEdit} className="py-3 px-6 rounded-xl bg-blue-600 text-white hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 transition">บันทึก</button>
+                        <div className="flex-1"></div>
+                        <button onClick={() => setEditingBooking(null)} className="py-3 px-6 rounded-xl border border-slate-200 text-slate-600 font-bold">ยกเลิก</button>
+                        <button onClick={handleSaveEdit} className="py-3 px-6 rounded-xl bg-blue-600 text-white font-bold shadow-lg">บันทึก</button>
                     </div>
                 </div>
             </div>
         )}
 
-        {/* Header และตัวกรอง */}
+        {/* Filter Bar */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 flex flex-col xl:flex-row justify-between items-center gap-4">
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
                 <h2 className="text-xl font-extrabold text-slate-800 whitespace-nowrap">📅 ประวัติการจอง</h2>
-                
-                {/* ช่องเลือกวันที่ */}
-                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 w-full sm:w-auto">
-                    <input 
-                        type="date" 
-                        value={filterDate}
-                        onChange={(e) => setFilterDate(e.target.value)}
-                        className="bg-transparent text-sm font-bold text-slate-600 focus:outline-none cursor-pointer w-full sm:w-auto"
-                    />
-                    {filterDate && (
-                        <button onClick={() => setFilterDate('')} className="text-xs text-red-500 hover:text-red-700 font-bold px-2 whitespace-nowrap">ดูทั้งหมด</button>
-                    )}
+                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                    <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="bg-transparent text-sm font-bold text-slate-600 focus:outline-none cursor-pointer" />
+                    {filterDate && <button onClick={() => setFilterDate('')} className="text-xs text-red-500 font-bold px-2">ดูทั้งหมด</button>}
                 </div>
-
-                {/* 🗑️ ปุ่มลบประวัติทั้งหมด */}
-                <button 
-                    onClick={handleDeleteAll}
-                    className="text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-bold border border-red-100 hover:bg-red-100 transition whitespace-nowrap flex items-center gap-1"
-                >
+                <button onClick={handleDeleteAll} className="text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-bold border border-red-100 hover:bg-red-100 flex items-center gap-1">
                     🗑️ ล้างทั้งหมด
                 </button>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="flex gap-2 flex-wrap justify-center w-full xl:w-auto overflow-x-auto pb-2 md:pb-0">
-                {['all', 'pending', 'approved', 'rejected', 'cancelled'].map(status => (
-                    <button 
-                        key={status}
-                        onClick={() => setFilterStatus(status)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap flex-shrink-0 ${
-                            filterStatus === status 
-                            ? 'bg-blue-600 text-white shadow-md' 
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                    >
-                        {status === 'cancelled' ? 'ยกเลิก' : statusLabels[status]?.split(' ')[0] || status}
+            {/* ✅ 3. ปุ่มกรองสถานะ (เพิ่มปุ่ม PAID_VERIFY) */}
+            <div className="flex gap-2 flex-wrap justify-center overflow-x-auto pb-2 md:pb-0">
+                {['all', 'PAID_VERIFY', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
+                    <button key={status} onClick={() => setFilterStatus(status)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${filterStatus === status ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}>
+                        {status === 'PAID_VERIFY' ? '⏳ รอตรวจสอบ' : statusLabels[status] || status}
                     </button>
                 ))}
             </div>
@@ -392,78 +311,50 @@ export default function BookingsPage() {
                 <div key={group.date} className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="bg-slate-100/50 px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                         <span className="text-2xl">🗓️</span>
-                        <h3 className="text-lg font-bold text-slate-700">
-                            {format(parseISO(group.date), "eeeeที่ d MMMM yyyy", { locale: th })}
-                        </h3>
-                        <span className="text-xs bg-white border border-slate-200 text-slate-500 px-2 py-1 rounded-full ml-auto md:ml-2">
-                            {group.items.length} รายการ
-                        </span>
+                        <h3 className="text-lg font-bold text-slate-700">{format(parseISO(group.date), "eeeeที่ d MMMM yyyy", { locale: th })}</h3>
+                        <span className="text-xs bg-white border border-slate-200 text-slate-500 px-2 py-1 rounded-full ml-auto md:ml-2">{group.items.length} รายการ</span>
                     </div>
-
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
                             <thead className="bg-slate-50 text-slate-500 text-xs uppercase hidden md:table-header-group">
                                 <tr>
-                                    <th className="p-4 w-1/6">เวลาจอง</th>
-                                    <th className="p-4 w-1/6">ลูกค้า</th>
-                                    <th className="p-4 w-1/6">สนาม</th>
-                                    <th className="p-4 w-1/6">เวลาเล่น</th>
-                                    <th className="p-4 w-1/6">ราคา</th>
-                                    <th className="p-4 w-1/6">สถานะ</th>
-                                    <th className="p-4 w-1/6 text-center">จัดการ</th>
+                                    <th className="p-4">เวลาจอง</th>
+                                    <th className="p-4">ลูกค้า</th>
+                                    <th className="p-4">สนาม</th>
+                                    <th className="p-4">เวลาเล่น</th>
+                                    <th className="p-4">ราคา</th>
+                                    <th className="p-4">สถานะ</th>
+                                    <th className="p-4 text-center">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {group.items.map(b => (
                                     <tr key={b.id} className="hover:bg-slate-50 transition-colors flex flex-col md:table-row p-4 md:p-0">
-                                        <td className="p-2 md:p-4 text-slate-500 flex justify-between md:table-cell">
+                                        <td className="p-2 md:p-4 text-slate-500 md:table-cell flex justify-between">
                                             <span className="md:hidden font-bold">เวลาทำรายการ:</span>
                                             {format(new Date(b.createdAt), "HH:mm", { locale: th })} น.
                                         </td>
-                                        <td className="p-2 md:p-4 flex justify-between md:table-cell">
+                                        <td className="p-2 md:p-4 md:table-cell flex justify-between">
                                             <span className="md:hidden font-bold">ลูกค้า:</span>
-                                            <div>
-                                                <div className="font-bold text-slate-800">{b.customerName}</div>
-                                                <div className="text-xs font-normal text-slate-400">{b.phoneNumber}</div>
-                                            </div>
+                                            <div><div className="font-bold text-slate-800">{b.customerName}</div><div className="text-xs text-slate-400">{b.phoneNumber}</div></div>
                                         </td>
-                                        <td className="p-2 md:p-4 flex justify-between md:table-cell">
+                                        <td className="p-2 md:p-4 md:table-cell flex justify-between">
                                             <span className="md:hidden font-bold">สนาม:</span>
-                                            <div>
-                                                <div className="font-bold text-blue-600">
-                                                    {b.court.name.replace('COURT', 'สนาม')}
-                                                </div>
-                                                <div className="text-[10px] text-slate-400">{b.court.type}</div>
-                                            </div>
+                                            <span className="font-bold text-blue-600">{b.court.name.replace('COURT', 'สนาม')}</span>
                                         </td>
-                                        <td className="p-2 md:p-4 flex justify-between md:table-cell">
+                                        <td className="p-2 md:p-4 md:table-cell flex justify-between">
                                             <span className="md:hidden font-bold">เวลาเล่น:</span>
-                                            <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">
-                                                {b.startTime}
-                                            </span>
+                                            <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">{b.startTime}</span>
                                         </td>
-                                        <td className="p-2 md:p-4 font-bold text-slate-800 flex justify-between md:table-cell">
-                                            <span className="md:hidden font-bold">ราคา:</span>
-                                            {b.price.toLocaleString()}.-
+                                        <td className="p-2 md:p-4 font-bold text-slate-800 md:table-cell flex justify-between">
+                                            <span className="md:hidden font-bold">ราคา:</span> {b.price.toLocaleString()}.-
                                         </td>
-                                        <td className="p-2 md:p-4 flex justify-between md:table-cell">
+                                        <td className="p-2 md:p-4 md:table-cell flex justify-between">
                                             <span className="md:hidden font-bold">สถานะ:</span>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 w-fit
-                                                ${b.status === 'approved' ? 'bg-green-100 text-green-700 border border-green-200' : 
-                                                  b.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200' : 
-                                                  b.status === 'cancelled' ? 'bg-slate-200 text-slate-600 border border-slate-300' :
-                                                  'bg-orange-100 text-orange-700 border border-orange-200 animate-pulse'}`}>
-                                                {statusLabels[b.status] || b.status}
-                                            </span>
+                                            {getStatusBadge(b.status)}
                                         </td>
                                         <td className="p-2 md:p-4 text-center md:table-cell flex justify-end">
-                                            <button 
-                                                onClick={() => openEditModal(b)}
-                                                className="bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 p-2 rounded-lg transition"
-                                                title="แก้ไข / ยกเลิก"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                                            </button>
+                                            <button onClick={() => openEditModal(b)} className="bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 p-2 rounded-lg transition">✏️</button>
                                         </td>
                                     </tr>
                                 ))}
@@ -476,8 +367,6 @@ export default function BookingsPage() {
             <div className="bg-white rounded-3xl p-16 text-center border border-slate-200">
                 <p className="text-4xl mb-4">🔍</p>
                 <p className="text-slate-400 font-bold">ไม่พบประวัติการจอง</p>
-                <p className="text-xs text-slate-300 mt-2">({filterDate ? format(parseISO(filterDate), "d MMM yyyy", { locale: th }) : 'ทั้งหมด'})</p>
-                <button onClick={() => setFilterDate('')} className="mt-4 text-blue-600 text-sm hover:underline">ดูทั้งหมด</button>
             </div>
         )}
     </div>
