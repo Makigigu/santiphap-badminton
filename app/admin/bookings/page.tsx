@@ -13,18 +13,24 @@ type Booking = {
   startTime: string; 
   status: string;
   price: number;
-  slipUrl: string | null; // เพิ่ม slipUrl
+  slipUrl: string | null;
   createdAt: string;
   court: { id: number; name: string; type: string };
 };
 
+// Type สำหรับกลุ่ม (มี ids array)
+type GroupedBooking = Booking & {
+    ids: string[];
+    totalPrice: number;
+    timeSlots: string[];
+};
+
 type Court = { id: number; name: string; price: number };
 
-// ✅ 1. แปลงรหัสสถานะเป็นภาษาไทย
 const statusLabels: { [key: string]: string } = {
     all: 'ทั้งหมด',
     PENDING: 'รอชำระเงิน',
-    PAID_VERIFY: '⏳ รอตรวจสอบสลิป', // แปลงตรงนี้
+    PAID_VERIFY: '⏳ รอตรวจสอบสลิป',
     APPROVED: '✅ อนุมัติ',
     REJECTED: '❌ ปฏิเสธ',
     CANCELLED: 'ยกเลิก'
@@ -43,17 +49,15 @@ export default function BookingsPage() {
   const [filterDate, setFilterDate] = useState<string>(''); 
   const [loading, setLoading] = useState(true);
 
-  // Edit Modal State
-  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
-  
-  // Image Preview Modal State
+  // Edit Modal State (ใช้ GroupedBooking แทน)
+  const [editingGroup, setEditingGroup] = useState<GroupedBooking | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // Form State
   const [editForm, setEditForm] = useState({ 
       date: '', 
       courtId: 0, 
       status: '',
+      // selectedTimes เอาไว้อ่านค่าเฉยๆ ในโหมดกลุ่มจะไม่ให้แก้เวลา เพื่อกันข้อมูลพัง
       selectedTimes: [] as string[] 
   });
 
@@ -75,21 +79,22 @@ export default function BookingsPage() {
       if (res.ok) setCourts(await res.json());
   };
 
-  // --- Functions ---
-
-  const handleDelete = async (id: string) => {
-      if (!confirm('⚠️ คุณต้องการลบรายการนี้ถาวรหรือไม่?')) return;
+  // ✅ ลบแบบกลุ่ม (Delete Group)
+  const handleDeleteGroup = async (ids: string[]) => {
+      if (!confirm(`⚠️ คุณต้องการลบ ${ids.length} รายการนี้ถาวรหรือไม่?`)) return;
       try {
-          const res = await fetch('/api/bookings', {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id }),
-          });
-          if (res.ok) {
-              alert('ลบรายการเรียบร้อย');
-              setEditingBooking(null);
-              fetchData();
-          } else { alert('ลบไม่สำเร็จ'); }
+          // วนลูปส่งคำขอลบทีละ ID (หรือจะแก้ API ให้รับ array ก็ได้ แต่อันนี้ง่ายสุด)
+          await Promise.all(ids.map(id => 
+              fetch('/api/bookings', {
+                  method: 'DELETE',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id }),
+              })
+          ));
+          
+          alert('ลบรายการเรียบร้อย');
+          setEditingGroup(null);
+          fetchData();
       } catch (error) { console.error(error); alert('เชื่อมต่อ Server ไม่ได้'); }
   };
 
@@ -106,68 +111,65 @@ export default function BookingsPage() {
       } catch (error) { console.error(error); }
   };
 
-  const openEditModal = (booking: Booking) => {
-      setEditingBooking(booking);
-      const timesArray = booking.startTime.split(',').map(t => t.trim().replace(' น.', '')).filter(t => t !== '');
+  // เปิด Modal แก้ไข (รับค่าเป็น Group)
+  const openEditModal = (group: GroupedBooking) => {
+      setEditingGroup(group);
+      
+      // เอาเวลาทั้งหมดมารวมกัน
+      const timesArray = group.timeSlots.map(t => t.replace(' น.', '').trim()).sort();
+
       setEditForm({
-          date: format(new Date(booking.date), 'yyyy-MM-dd'),
-          courtId: booking.court.id,
-          status: booking.status, // เก็บค่าดิบ (เช่น PAID_VERIFY)
+          date: format(new Date(group.date), 'yyyy-MM-dd'),
+          courtId: group.court.id,
+          status: group.status,
           selectedTimes: timesArray
       });
   };
 
+  // ✅ บันทึกการแก้ไข (Update Group)
   const handleSaveEdit = async () => {
-      if (!editingBooking) return;
-      if (!confirm("ยืนยันการบันทึกข้อมูล?")) return;
-      const combinedStartTime = editForm.selectedTimes.join(', ') + " น.";
+      if (!editingGroup) return;
+      if (!confirm(`ยืนยันการอัปเดตข้อมูลทั้ง ${editingGroup.ids.length} รายการ?`)) return;
       
       try {
-          const res = await fetch('/api/bookings', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  id: editingBooking.id,
-                  date: editForm.date,
-                  startTime: combinedStartTime,
-                  courtId: editForm.courtId,
-                  status: editForm.status,
+          // อัปเดตสถานะ/วันที่/สนาม ให้กับทุก ID ในกลุ่ม
+          await Promise.all(editingGroup.ids.map(id => 
+              fetch('/api/bookings', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      id: id,
+                      date: editForm.date,
+                      // หมายเหตุ: เราไม่อัปเดต startTime ในโหมดกลุ่ม เพราะจะทำให้เวลาซ้ำกันทุกรายการ
+                      // เราจะอัปเดตแค่ สถานะ, วันที่, สนาม
+                      courtId: editForm.courtId,
+                      status: editForm.status,
+                  })
               })
-          });
-          if (res.ok) { alert("บันทึกสำเร็จ"); setEditingBooking(null); fetchData(); }
-      } catch (error) { console.error(error); }
+          ));
+
+          alert("บันทึกสำเร็จ"); 
+          setEditingGroup(null); 
+          fetchData();
+      } catch (error) { console.error(error); alert("เกิดข้อผิดพลาด"); }
   };
 
-  const toggleTimeSlot = (slot: string) => {
-      setEditForm(prev => {
-          const exists = prev.selectedTimes.includes(slot);
-          return exists 
-            ? { ...prev, selectedTimes: prev.selectedTimes.filter(t => t !== slot) }
-            : { ...prev, selectedTimes: [...prev.selectedTimes, slot].sort() };
-      });
-  };
-
-  // Helper: เลือกสี Badge ให้สวยงาม
+  // Helper: เลือกสี Badge
   const getStatusBadge = (status: string) => {
       const s = status.toUpperCase();
       switch (s) {
-          case 'PAID_VERIFY': 
-              return <span className="bg-yellow-100 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold animate-pulse">⏳ รอตรวจสอบสลิป</span>;
-          case 'PENDING': 
-              return <span className="bg-red-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">💰 รอชำระเงิน</span>;
-          case 'APPROVED': 
-              return <span className="bg-green-100 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-bold">✅ อนุมัติ</span>;
-          case 'REJECTED': 
-              return <span className="bg-slate-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">❌ ปฏิเสธ</span>;
-          default: 
-              return <span className="bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
+          case 'PAID_VERIFY': return <span className="bg-yellow-100 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold animate-pulse">⏳ รอตรวจสอบ</span>;
+          case 'PENDING': return <span className="bg-red-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">💰 รอชำระเงิน</span>;
+          case 'APPROVED': return <span className="bg-green-100 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-bold">✅ อนุมัติ</span>;
+          case 'REJECTED': return <span className="bg-slate-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">❌ ปฏิเสธ</span>;
+          default: return <span className="bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
       }
   };
 
-  // Logic Grouping
+  // --- Logic Grouping (หัวใจสำคัญ) ---
   const groupedBookings = useMemo(() => {
+    // 1. กรองข้อมูลตาม Filter
     const filtered = bookings.filter(b => {
-        // แก้ไข: เทียบ Status แบบ Case-Insensitive (ตัวพิมพ์เล็ก/ใหญ่ ก็ให้เจอหมด)
         const matchesStatus = filterStatus === 'all' || b.status.toUpperCase() === filterStatus.toUpperCase();
         let matchesDate = true;
         if (filterDate) {
@@ -176,16 +178,50 @@ export default function BookingsPage() {
         return matchesStatus && matchesDate;
     });
 
-    const groups: { [key: string]: Booking[] } = {};
+    // 2. จัดกลุ่มตาม "วันที่" ก่อน (เพื่อให้แสดงเป็นหัวข้อวัน)
+    const dateGroups: { [key: string]: Booking[] } = {};
     filtered.forEach(booking => {
         const dateKey = format(new Date(booking.date), 'yyyy-MM-dd');
-        if (!groups[dateKey]) groups[dateKey] = [];
-        groups[dateKey].push(booking);
+        if (!dateGroups[dateKey]) dateGroups[dateKey] = [];
+        dateGroups[dateKey].push(booking);
     });
 
-    return Object.keys(groups)
+    // 3. ในแต่ละวัน ให้จัดกลุ่มย่อยตาม "ลูกค้า+สนาม+สถานะ" (Grouping Logic)
+    return Object.keys(dateGroups)
         .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-        .map(date => ({ date, items: groups[date] }));
+        .map(dateKey => {
+            const rawBookings = dateGroups[dateKey];
+            const subGroups: { [key: string]: GroupedBooking } = {};
+
+            rawBookings.forEach(b => {
+                // Key สำหรับรวมกลุ่ม: ชื่อลูกค้า + เบอร์ + สนาม + สถานะ
+                // (ถ้าคนเดิม จองสนามเดิม วันเดียวกัน สถานะเดียวกัน -> รวม)
+                const groupKey = `${b.customerName}-${b.phoneNumber}-${b.court.id}-${b.status}`;
+
+                if (!subGroups[groupKey]) {
+                    subGroups[groupKey] = {
+                        ...b,
+                        ids: [b.id],
+                        totalPrice: b.price,
+                        timeSlots: [b.startTime]
+                    };
+                } else {
+                    subGroups[groupKey].ids.push(b.id);
+                    subGroups[groupKey].totalPrice += b.price;
+                    subGroups[groupKey].timeSlots.push(b.startTime);
+                    // ถ้าอันใหม่มีสลิป แต่อันเก่าไม่มี ให้อัปเดต (เผื่ออันใดอันหนึ่งมีสลิป)
+                    if (b.slipUrl && !subGroups[groupKey].slipUrl) {
+                        subGroups[groupKey].slipUrl = b.slipUrl;
+                    }
+                }
+            });
+
+            // คืนค่าเป็น Array ของกลุ่มที่จัดแล้ว
+            return { 
+                date: dateKey, 
+                items: Object.values(subGroups).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) 
+            };
+        });
   }, [bookings, filterStatus, filterDate]);
 
   if (loading) return <div className="p-10 text-center text-slate-500">กำลังโหลดข้อมูล...</div>;
@@ -193,89 +229,110 @@ export default function BookingsPage() {
   return (
     <div className="space-y-6 animate-fade-in relative p-6 bg-slate-50 min-h-screen">
         
-        {/* Image Modal (ดูสลิปเต็มจอ) */}
+        {/* Image Modal */}
         {previewImage && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 cursor-pointer" onClick={() => setPreviewImage(null)}>
                 <img src={previewImage} alt="Slip Full" className="max-h-screen object-contain" />
             </div>
         )}
 
-        {/* Edit Modal */}
-        {editingBooking && (
+        {/* Edit Modal (จัดการกลุ่ม) */}
+        {editingGroup && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-scale-in max-h-[95vh] overflow-y-auto">
                     <div className="flex justify-between items-center mb-4 border-b pb-2">
-                        <h3 className="text-xl font-bold text-slate-800">✏️ จัดการการจอง</h3>
-                        <button onClick={() => setEditingBooking(null)} className="text-slate-400 hover:text-red-500 text-2xl">×</button>
+                        <h3 className="text-xl font-bold text-slate-800">✏️ จัดการการจอง ({editingGroup.ids.length} รายการ)</h3>
+                        <button onClick={() => setEditingGroup(null)} className="text-slate-400 hover:text-red-500 text-2xl">×</button>
                     </div>
                     
                     <div className="space-y-5">
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center">
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase">ลูกค้า</label>
-                                <div className="text-slate-800 font-bold text-lg">{editingBooking.customerName}</div>
-                                <div className="text-slate-500 text-sm">{editingBooking.phoneNumber}</div>
+                                <div className="text-slate-800 font-bold text-lg">{editingGroup.customerName}</div>
+                                <div className="text-slate-500 text-sm">{editingGroup.phoneNumber}</div>
                             </div>
                             <div className="text-right">
+                                <label className="text-xs font-bold text-slate-500 uppercase">ราคารวม</label>
                                 <div className="text-blue-600 font-extrabold text-xl">
-                                    {(courts.find(c => c.id === editForm.courtId)?.price || 0) * editForm.selectedTimes.length}.-
+                                    {editingGroup.totalPrice.toLocaleString()}.-
                                 </div>
                             </div>
                         </div>
 
-                        {/* ดูสลิปใน Modal */}
-                        {editingBooking.slipUrl && (
-                            <div className="text-center">
+                        {/* ดูสลิป */}
+                        {editingGroup.slipUrl && (
+                            <div className="text-center bg-slate-50 p-2 rounded-lg border border-dashed border-slate-300">
                                 <label className="text-xs font-bold text-slate-500 mb-2 block">หลักฐานการโอน</label>
                                 <img 
-                                    src={editingBooking.slipUrl} 
+                                    src={editingGroup.slipUrl} 
                                     alt="Slip" 
                                     className="h-32 mx-auto rounded-lg border cursor-pointer hover:opacity-80 transition"
-                                    onClick={() => setPreviewImage(editingBooking.slipUrl)}
+                                    onClick={() => setPreviewImage(editingGroup.slipUrl!)}
                                 />
                                 <p className="text-[10px] text-slate-400 mt-1">(คลิกเพื่อขยาย)</p>
                             </div>
                         )}
 
                         <div>
-                            <label className="text-sm font-bold text-slate-700 mb-1 block">เปลี่ยนสถานะ</label>
+                            <label className="text-sm font-bold text-slate-700 mb-1 block">เปลี่ยนสถานะ (มีผลกับทั้งกลุ่ม)</label>
                             <select 
                                 value={editForm.status}
                                 onChange={e => setEditForm({...editForm, status: e.target.value})}
-                                className="w-full border-2 rounded-lg p-2 font-bold bg-white text-slate-700"
+                                className="w-full border-2 rounded-lg p-2 font-bold bg-white text-slate-700 focus:border-blue-500 focus:outline-none"
                             >
-                                <option value="PENDING">🔴 รอชำระเงิน (ยังไม่ส่งสลิป)</option>
+                                <option value="PENDING">🔴 รอชำระเงิน</option>
                                 <option value="PAID_VERIFY">🟡 รอตรวจสอบสลิป</option>
                                 <option value="APPROVED">🟢 อนุมัติ (เรียบร้อย)</option>
-                                <option value="REJECTED">❌ ปฏิเสธ (สลิปผิด)</option>
+                                <option value="REJECTED">❌ ปฏิเสธ</option>
                                 <option value="CANCELLED">⚪ ยกเลิก</option>
                             </select>
                         </div>
 
-                        {/* เลือกเวลา (เหมือนเดิม) */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-sm font-bold text-slate-500 mb-1 block">วันที่</label>
+                                <input 
+                                    type="date" 
+                                    value={editForm.date}
+                                    onChange={e => setEditForm({...editForm, date: e.target.value})}
+                                    className="w-full border border-slate-300 rounded-lg p-2 text-slate-700"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-bold text-slate-500 mb-1 block">สนาม</label>
+                                <select 
+                                    value={editForm.courtId}
+                                    onChange={e => setEditForm({...editForm, courtId: parseInt(e.target.value)})}
+                                    className="w-full border border-slate-300 rounded-lg p-2 text-slate-700"
+                                >
+                                    {courts.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name.replace('COURT', 'สนาม')}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* เวลา (แสดงผลเท่านั้น แก้ไขไม่ได้ในโหมดกลุ่ม เพื่อความปลอดภัย) */}
                         <div>
-                            <label className="text-sm font-bold text-slate-500 mb-2 block">เวลาจอง</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {timeSlots.map(slot => {
-                                    const selected = editForm.selectedTimes.includes(slot);
-                                    return (
-                                        <button key={slot} onClick={() => toggleTimeSlot(slot)}
-                                            className={`text-xs py-2 px-1 rounded-lg border font-bold transition-all ${selected ? 'bg-blue-600 text-white' : 'bg-white text-slate-600'}`}>
-                                            {slot}
-                                        </button>
-                                    )
-                                })}
+                            <label className="text-sm font-bold text-slate-500 mb-2 block">เวลาที่จอง (แก้ไขไม่ได้)</label>
+                            <div className="flex flex-wrap gap-2">
+                                {editForm.selectedTimes.map((slot, idx) => (
+                                    <span key={idx} className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">
+                                        {slot}
+                                    </span>
+                                ))}
                             </div>
                         </div>
                     </div>
 
                     <div className="flex gap-3 mt-8 pt-4 border-t">
-                        <button onClick={() => handleDelete(editingBooking.id)} className="py-3 px-4 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 font-bold transition flex items-center justify-center gap-2">
-                            <span>🗑️</span> ลบ
+                        <button onClick={() => handleDeleteGroup(editingGroup.ids)} className="py-3 px-4 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 font-bold transition flex items-center justify-center gap-2">
+                            <span>🗑️</span> ลบทั้งกลุ่ม
                         </button>
                         <div className="flex-1"></div>
-                        <button onClick={() => setEditingBooking(null)} className="py-3 px-6 rounded-xl border border-slate-200 text-slate-600 font-bold">ยกเลิก</button>
-                        <button onClick={handleSaveEdit} className="py-3 px-6 rounded-xl bg-blue-600 text-white font-bold shadow-lg">บันทึก</button>
+                        <button onClick={() => setEditingGroup(null)} className="py-3 px-6 rounded-xl border border-slate-200 text-slate-600 font-bold">ยกเลิก</button>
+                        <button onClick={handleSaveEdit} className="py-3 px-6 rounded-xl bg-blue-600 text-white font-bold shadow-lg hover:bg-blue-700">บันทึก</button>
                     </div>
                 </div>
             </div>
@@ -294,9 +351,8 @@ export default function BookingsPage() {
                 </button>
             </div>
 
-            {/* ✅ 3. ปุ่มกรองสถานะ (เพิ่มปุ่ม PAID_VERIFY) */}
             <div className="flex gap-2 flex-wrap justify-center overflow-x-auto pb-2 md:pb-0">
-                {['all', 'PAID_VERIFY', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
+                {['all', 'PAID_VERIFY', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'].map(status => (
                     <button key={status} onClick={() => setFilterStatus(status)}
                         className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${filterStatus === status ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}>
                         {status === 'PAID_VERIFY' ? '⏳ รอตรวจสอบ' : statusLabels[status] || status}
@@ -312,7 +368,9 @@ export default function BookingsPage() {
                     <div className="bg-slate-100/50 px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                         <span className="text-2xl">🗓️</span>
                         <h3 className="text-lg font-bold text-slate-700">{format(parseISO(group.date), "eeeeที่ d MMMM yyyy", { locale: th })}</h3>
-                        <span className="text-xs bg-white border border-slate-200 text-slate-500 px-2 py-1 rounded-full ml-auto md:ml-2">{group.items.length} รายการ</span>
+                        <span className="text-xs bg-white border border-slate-200 text-slate-500 px-2 py-1 rounded-full ml-auto md:ml-2">
+                            {group.items.length} รายการ (กลุ่ม)
+                        </span>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
@@ -322,7 +380,7 @@ export default function BookingsPage() {
                                     <th className="p-4">ลูกค้า</th>
                                     <th className="p-4">สนาม</th>
                                     <th className="p-4">เวลาเล่น</th>
-                                    <th className="p-4">ราคา</th>
+                                    <th className="p-4">ราคารวม</th>
                                     <th className="p-4">สถานะ</th>
                                     <th className="p-4 text-center">จัดการ</th>
                                 </tr>
@@ -344,17 +402,27 @@ export default function BookingsPage() {
                                         </td>
                                         <td className="p-2 md:p-4 md:table-cell flex justify-between">
                                             <span className="md:hidden font-bold">เวลาเล่น:</span>
-                                            <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">{b.startTime}</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {/* แสดงเวลาแบบรวมกลุ่ม */}
+                                                {b.timeSlots.sort().map((t, i) => (
+                                                    <span key={i} className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600 whitespace-nowrap">
+                                                        {t} น.
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </td>
                                         <td className="p-2 md:p-4 font-bold text-slate-800 md:table-cell flex justify-between">
-                                            <span className="md:hidden font-bold">ราคา:</span> {b.price.toLocaleString()}.-
+                                            <span className="md:hidden font-bold">ราคารวม:</span> 
+                                            {b.totalPrice.toLocaleString()}.-
                                         </td>
                                         <td className="p-2 md:p-4 md:table-cell flex justify-between">
                                             <span className="md:hidden font-bold">สถานะ:</span>
                                             {getStatusBadge(b.status)}
                                         </td>
                                         <td className="p-2 md:p-4 text-center md:table-cell flex justify-end">
-                                            <button onClick={() => openEditModal(b)} className="bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 p-2 rounded-lg transition">✏️</button>
+                                            <button onClick={() => openEditModal(b)} className="bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 p-2 rounded-lg transition" title="จัดการกลุ่มนี้">
+                                                ✏️
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
