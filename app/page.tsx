@@ -288,7 +288,7 @@ export default function Home() {
 
             <div className="mb-4">
                 <Link href="/login" className="text-xs text-slate-600 hover:text-slate-400 transition bg-slate-800 px-3 py-1.5 rounded-full">
-                    🔐 สำหรับเจ้าหน้าที่
+                    สำหรับเจ้าหน้าที่
                 </Link>
             </div>
 
