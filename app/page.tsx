@@ -16,14 +16,10 @@ export default function Home() {
           </Link>
           
           <div className="flex items-center gap-2 md:gap-4">
-            <Link href="/history" className="flex items-center gap-2 text-slate-600 hover:text-blue-600 font-bold transition px-3 py-2 rounded-full hover:bg-slate-50 text-sm md:text-base">
+            {/* เอาปุ่มจองคอร์ทออก เหลือแค่ประวัติการจอง */}
+            <Link href="/history" className="flex items-center gap-2 text-slate-600 hover:text-blue-600 font-bold transition px-4 py-2 rounded-full hover:bg-slate-50 text-sm md:text-base border border-transparent hover:border-slate-100">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              <span className="hidden sm:inline">ประวัติการจอง</span>
-            </Link>
-            
-            <Link href="/booking" className="px-5 py-2.5 rounded-full bg-slate-900 text-white font-medium hover:bg-slate-800 transition shadow-lg shadow-slate-900/20 flex items-center gap-2 text-sm md:text-base">
-               <span>จองคอร์ท</span>
-               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              <span>ประวัติการจอง</span>
             </Link>
           </div>
         </div>
@@ -31,7 +27,7 @@ export default function Home() {
 
       {/* --- Hero Section --- */}
       <div className="relative h-[500px] md:h-[600px] flex items-center justify-center mt-16 overflow-hidden">
-        {/* Background Image */}
+        {/* Background Image (คงเดิม 100%) */}
         <div 
             className="absolute inset-0 bg-cover bg-center animate-kenburns"
             style={{
@@ -191,12 +187,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --- ระเบียบการใช้สนาม (ปรับปรุง: เพิ่มรูปภาพสวยงามตามที่ขอ) --- */}
+      {/* --- ระเบียบการใช้สนาม --- */}
       <section className="py-20 bg-white border-t border-slate-100 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4">
             <div className="flex flex-col lg:flex-row gap-16 items-center">
                 
-                {/* Content Left (เนื้อหาเดิมของคุณ) */}
+                {/* Content Left */}
                 <div className="w-full lg:w-3/5 order-2 lg:order-1">
                     <div className="mb-8">
                         <span className="inline-block py-1.5 px-4 rounded-full bg-orange-50 text-orange-600 font-bold text-sm mb-4 border border-orange-100">
@@ -254,7 +250,7 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* Right: Beautiful Image (ส่วนที่เพิ่มใหม่)  */}
+                {/* Right: Beautiful Image */}
                 <div className="w-full lg:w-2/5 order-1 lg:order-2 mb-10 lg:mb-0 relative">
                     <div className="relative rounded-[3rem] overflow-hidden shadow-2xl border-[10px] border-white rotate-3 hover:rotate-0 transition-transform duration-500 ease-out cursor-pointer group">
                         <img 
