@@ -89,13 +89,26 @@ export default function DashboardPage() {
 
   // ฟังก์ชันล้างรายการค้าง
   const handleCleanup = async () => {
-    if(!confirm('ต้องการลบรายการจองที่ค้างชำระเกิน 30 นาที ทั้งหมดหรือไม่?')) return;
+    if(!confirm('ยืนยันการลบ\nระบบจะลบรายการที่ "รอชำระเงิน" และค้างนานเกิน 30 นาทีทิ้งทั้งหมด')) return;
+    
+    setLoading(true); // หมุนติ้วๆ ระหว่างรอ
     try {
-        // (API cleanup ต้องมีอยู่จริง ถึงจะทำงานได้)
-        alert("ระบบกำลังเคลียร์ข้อมูล..."); 
-        fetchData(); 
+        const res = await fetch('/api/bookings/cleanup', {
+            method: 'DELETE',
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`ล้างข้อมูลเรียบร้อย \nลบรายการขยะไปทั้งหมด: ${data.deletedCount} รายการ`);
+            fetchData(); // โหลดข้อมูลใหม่ทันที
+        } else {
+            alert("เกิดข้อผิดพลาด ไม่สามารถล้างข้อมูลได้");
+        }
     } catch (error) {
         console.error("Cleanup error:", error);
+        alert("เชื่อมต่อ Server ไม่ได้");
+    } finally {
+        setLoading(false);
     }
   };
 
