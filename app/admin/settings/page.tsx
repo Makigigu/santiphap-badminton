@@ -31,7 +31,6 @@ export default function SettingsPage() {
       const res = await fetch('/api/courts');
       if (res.ok) {
         const data = await res.json();
-        // แปลงวันที่ให้เป็น string YYYY-MM-DD เพื่อใส่ใน input date ได้
         const formattedData = data.map((c: any) => ({
           ...c,
           closures: c.closures.map((cl: any) => ({
@@ -49,12 +48,11 @@ export default function SettingsPage() {
     }
   };
 
-  // ✅ ฟังก์ชันสร้างสนามใหม่ (เพิ่มเข้ามา)
+  // ✅ ฟังก์ชันเพิ่มสนาม (มี Confirm)
   const createNewCourt = async () => {
-    if (!confirm('ยืนยันการเพิ่มสนามใหม่?')) return;
+    if (!confirm('➕ ยืนยันการ "เพิ่มสนามใหม่" ใช่หรือไม่?')) return;
 
     try {
-      // ยิง API POST ไปสร้างสนาม (ค่า Default: ชื่อรันตามเลข, ราคา 150)
       const res = await fetch('/api/courts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,7 +65,7 @@ export default function SettingsPage() {
 
       if (res.ok) {
         alert('เพิ่มสนามเรียบร้อย!');
-        fetchCourts(); // โหลดข้อมูลใหม่ทันที
+        fetchCourts();
       } else {
         alert('สร้างสนามไม่สำเร็จ');
       }
@@ -77,14 +75,36 @@ export default function SettingsPage() {
     }
   };
 
-  // ฟังก์ชันแก้ไขค่าใน Input (ชื่อ, ประเภท, ราคา)
+  // ✅ ฟังก์ชันลบสนาม (เพิ่มใหม่)
+  const deleteCourt = async (id: number, name: string) => {
+      const confirmMsg = `⚠️ คำเตือน: คุณต้องการลบ "${name}" ใช่หรือไม่?\n\nหากลบแล้ว ประวัติการจองของสนามนี้อาจหายไปหรือแสดงผลผิดพลาดได้`;
+      if (!confirm(confirmMsg)) return;
+
+      try {
+          const res = await fetch('/api/courts', {
+              method: 'DELETE', // ต้องแน่ใจว่า API รองรับ DELETE
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id }),
+          });
+
+          if (res.ok) {
+              alert('ลบสนามเรียบร้อย');
+              fetchCourts();
+          } else {
+              alert('ไม่สามารถลบสนามได้ (อาจมีการจองค้างอยู่)');
+          }
+      } catch (error) {
+          console.error(error);
+          alert('เกิดข้อผิดพลาด');
+      }
+  };
+
   const handleCourtChange = (id: number, field: keyof Court, value: any) => {
     setCourts((prev) =>
       prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
     );
   };
 
-  // ฟังก์ชันเพิ่มวันปิดปรับปรุง (ใน State)
   const addClosure = (courtId: number, start: string, end: string) => {
     if (!start || !end) return alert('กรุณาเลือกวันเริ่มต้นและสิ้นสุด');
     setCourts((prev) =>
@@ -100,7 +120,6 @@ export default function SettingsPage() {
     );
   };
 
-  // ฟังก์ชันลบวันปิดปรับปรุง (ใน State)
   const removeClosure = (courtId: number, index: number) => {
     setCourts((prev) =>
       prev.map((c) => {
@@ -114,7 +133,6 @@ export default function SettingsPage() {
     );
   };
 
-  // บันทึกข้อมูลลงฐานข้อมูล
   const saveCourtSettings = async (court: Court) => {
     if (!confirm(`ยืนยันการบันทึกข้อมูล ${court.name}?`)) return;
 
@@ -154,7 +172,6 @@ export default function SettingsPage() {
           ⚙️ ตั้งค่าสนามและราคา
         </h1>
         
-        {/* ✅ ปุ่มเพิ่มสนาม (สีเขียว) */}
         <button
           onClick={createNewCourt}
           className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 transition active:scale-95"
@@ -174,7 +191,7 @@ export default function SettingsPage() {
           >
             {/* Header: ชื่อสนาม, ประเภท, ราคา, ปุ่มบันทึก */}
             <div className="flex flex-col md:flex-row gap-6 mb-6 pb-6 border-b border-slate-100">
-              {/* ส่วนแก้ไขชื่อและรายละเอียด */}
+              
               <div className="flex-1 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">
@@ -206,7 +223,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* ส่วนแก้ไขราคาและปุ่มบันทึก */}
+              {/* ส่วนแก้ไขราคาและปุ่ม Action */}
               <div className="flex items-end gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-1 text-right">
@@ -224,6 +241,17 @@ export default function SettingsPage() {
                     <span className="text-sm text-slate-500">฿</span>
                   </div>
                 </div>
+
+                {/* ปุ่มลบสนาม (สีแดง) */}
+                <button
+                  onClick={() => deleteCourt(court.id, court.name)}
+                  className="bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 px-3 py-2.5 rounded-xl transition active:scale-95 h-[42px] flex items-center justify-center"
+                  title="ลบสนามนี้"
+                >
+                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                </button>
+
+                {/* ปุ่มบันทึก (สีน้ำเงิน) */}
                 <button
                   onClick={() => saveCourtSettings(court)}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200 transition active:scale-95 h-[42px]"
@@ -239,7 +267,6 @@ export default function SettingsPage() {
                 ⛔ กำหนดวันปิดปรับปรุง:
               </h4>
 
-              {/* Form เพิ่มวันปิด */}
               <div className="bg-slate-50 p-4 rounded-xl flex flex-wrap gap-3 items-end mb-4 border border-slate-100">
                 <div>
                   <span className="text-xs text-slate-400 block mb-1">
@@ -270,7 +297,7 @@ export default function SettingsPage() {
                       `end-${court.id}`
                     ) as HTMLInputElement;
                     addClosure(court.id, startEl.value, endEl.value);
-                    startEl.value = ''; // Reset input
+                    startEl.value = '';
                     endEl.value = '';
                   }}
                   className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-600 transition shadow-md shadow-red-200"
@@ -279,7 +306,6 @@ export default function SettingsPage() {
                 </button>
               </div>
 
-              {/* รายการวันปิดที่มีอยู่ */}
               {court.closures.length > 0 ? (
                 <div className="space-y-2">
                   {court.closures.map((closure, index) => (
