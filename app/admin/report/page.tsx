@@ -23,7 +23,6 @@ export default function ReportPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ดึงข้อมูลเมื่อเปลี่ยนเดือน
   useEffect(() => {
     const fetchRevenue = async () => {
       setLoading(true);
@@ -42,7 +41,6 @@ export default function ReportPage() {
     fetchRevenue();
   }, [currentDate]);
 
-  // คำนวณยอดรายวัน
   const dailyReport = useMemo(() => {
     const daysInMonth = getDaysInMonth(currentDate);
     const report: DailyRevenue[] = [];
@@ -53,8 +51,6 @@ export default function ReportPage() {
         const daysBookings = bookings.filter(b => format(new Date(b.date), 'yyyy-MM-dd') === dateStr);
         const total = daysBookings.reduce((sum, b) => sum + b.price, 0);
 
-        // เก็บข้อมูลเฉพาะวันที่มีรายได้ (เพื่อให้ตารางไม่ยาวเกินไปเหมือนในตัวอย่าง)
-        // หรือถ้าอยากโชว์ทุกวัน ให้เอา if(total > 0) ออก
         if (total > 0) { 
             report.push({
                 date: dateStr,
@@ -67,7 +63,6 @@ export default function ReportPage() {
     return report;
   }, [bookings, currentDate]);
 
-  // คำนวณยอดรวมทั้งสิ้น
   const grandTotal = bookings.reduce((sum, b) => sum + b.price, 0);
   const totalBookings = bookings.length;
 
@@ -78,6 +73,20 @@ export default function ReportPage() {
   return (
     <div className="min-h-screen bg-slate-100 p-8 font-sans text-slate-900 print:bg-white print:p-0">
       
+      {/* ✅ สไตล์พิเศษสำหรับการพิมพ์ (ซ่อนวันที่/URL หัวกระดาษ และตั้งขอบ) */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4;
+            margin: 10mm; /* ตั้งขอบกระดาษ 10mm พอดีสวย ไม่ตกขอบ */
+          }
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+      `}</style>
+
       {/* --- ส่วนควบคุม (ซ่อนตอน Print) --- */}
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center print:hidden">
          <div className="flex items-center gap-4 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
@@ -95,14 +104,14 @@ export default function ReportPage() {
          </button>
       </div>
 
-      {/* --- หน้ากระดาษ A4 (Paper Layout) --- */}
-      <div className="mx-auto bg-white shadow-2xl print:shadow-none print:w-full" style={{ width: '210mm', minHeight: '297mm', padding: '15mm' }}>
+      {/* --- หน้ากระดาษ A4 --- */}
+      {/* ✅ แก้ไข: ใช้ w-[210mm] แค่ตอนดูหน้าจอ แต่ตอน print ให้ใช้ w-full เพื่อไม่ให้ล้น */}
+      <div className="mx-auto bg-white shadow-2xl print:shadow-none w-[210mm] print:w-full min-h-[297mm] print:min-h-0 p-[15mm] print:p-0">
          
          {/* 1. Header หัวกระดาษ */}
          <div className="flex justify-between items-start mb-8">
             <div className="flex items-center gap-3">
-                {/* โลโก้ (ถ้ามี) หรือใช้ Icon */}
-                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white text-2xl font-bold print:border print:border-slate-300">
                     ส
                 </div>
                 <div>
@@ -116,7 +125,7 @@ export default function ReportPage() {
             </div>
          </div>
 
-         {/* 2. ตารางข้อมูล (Bordered Table แบบในรูป) */}
+         {/* 2. ตารางข้อมูล */}
          <div className="mb-8">
              <table className="w-full text-left border-collapse border border-slate-300 text-sm">
                  <thead>
@@ -155,7 +164,6 @@ export default function ReportPage() {
                          </tr>
                      )}
                  </tbody>
-                 {/* Footer ของตาราง */}
                  <tfoot>
                      <tr className="bg-slate-50 font-bold text-slate-800">
                          <td colSpan={3} className="border border-slate-300 px-4 py-2 text-center">รวมทั้งสิ้น (Total)</td>
@@ -168,8 +176,9 @@ export default function ReportPage() {
              </table>
          </div>
 
-         {/* 3. สรุปท้ายกระดาษ (Summary Section) */}
-         <div className="flex justify-end mb-16">
+         {/* 3. สรุปท้ายกระดาษ */}
+         {/* ✅ ใช้ break-inside-avoid เพื่อป้องกันไม่ให้ส่วนสรุปขาดครึ่งหน้า */}
+         <div className="flex justify-end mb-16 break-inside-avoid">
              <div className="w-1/2">
                  <div className="flex justify-between mb-2 text-sm">
                      <span className="text-slate-600">เงินสด (Cash):</span>
@@ -190,10 +199,10 @@ export default function ReportPage() {
              </div>
          </div>
 
-         {/* 4. ส่วนเซ็นชื่อ (Signatures) */}
-         <div className="flex justify-between text-center px-10 text-sm">
+         {/* 4. ส่วนเซ็นชื่อ */}
+         <div className="flex justify-between text-center px-10 text-sm break-inside-avoid">
              <div className="flex flex-col items-center">
-                 <div className="mb-10">จัดทำโดย</div>
+                 <div className="mb-8">จัดทำโดย</div>
                  <div className="w-40 border-b border-slate-400 border-dotted mb-2"></div>
                  <div className="text-slate-500">(.......................................................)</div>
                  <div className="mt-1 font-bold text-slate-700">เจ้าหน้าที่สนาม</div>
@@ -201,7 +210,7 @@ export default function ReportPage() {
              </div>
 
              <div className="flex flex-col items-center">
-                 <div className="mb-10">ผู้อนุมัติ</div>
+                 <div className="mb-8">ผู้อนุมัติ</div>
                  <div className="w-40 border-b border-slate-400 border-dotted mb-2"></div>
                  <div className="text-slate-500">(.......................................................)</div>
                  <div className="mt-1 font-bold text-slate-700">ผู้จัดการ / เจ้าของกิจการ</div>
@@ -209,8 +218,7 @@ export default function ReportPage() {
              </div>
          </div>
 
-         {/* Footer ล่างสุด (Print Date) */}
-         <div className="mt-20 text-right text-[10px] text-slate-400">
+         <div className="mt-16 text-right text-[10px] text-slate-400">
              พิมพ์เมื่อ: {format(new Date(), 'd MMMM yyyy เวลา HH:mm น.', { locale: th })}
          </div>
 
