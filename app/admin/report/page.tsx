@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { format, getDaysInMonth, startOfMonth, addMonths } from 'date-fns';
+import { format, getDaysInMonth, startOfMonth, addMonths, setMonth, setYear } from 'date-fns';
 import { th } from 'date-fns/locale';
 
 type Booking = {
@@ -22,6 +22,16 @@ export default function ReportPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ข้อมูลสำหรับ Dropdown
+  const months = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+  
+  // สร้างรายการปี (ย้อนหลัง 5 ปี - ล่วงหน้า 5 ปี)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
   useEffect(() => {
     const fetchRevenue = async () => {
@@ -66,19 +76,30 @@ export default function ReportPage() {
   const grandTotal = bookings.reduce((sum, b) => sum + b.price, 0);
   const totalBookings = bookings.length;
 
+  // --- Functions ---
   const changeMonth = (amount: number) => {
       setCurrentDate(prev => addMonths(prev, amount));
+  };
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const newMonth = parseInt(e.target.value);
+      setCurrentDate(prev => setMonth(prev, newMonth));
+  };
+
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const newYear = parseInt(e.target.value);
+      setCurrentDate(prev => setYear(prev, newYear));
   };
 
   return (
     <div className="min-h-screen bg-slate-100 p-8 font-sans text-slate-900 print:bg-white print:p-0">
       
-      {/* ✅ สไตล์พิเศษสำหรับการพิมพ์ (ซ่อนวันที่/URL หัวกระดาษ และตั้งขอบ) */}
+      {/* สไตล์พิเศษสำหรับการพิมพ์ */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4;
-            margin: 10mm; /* ตั้งขอบกระดาษ 10mm พอดีสวย ไม่ตกขอบ */
+            margin: 10mm;
           }
           body {
             print-color-adjust: exact;
@@ -88,14 +109,49 @@ export default function ReportPage() {
       `}</style>
 
       {/* --- ส่วนควบคุม (ซ่อนตอน Print) --- */}
-      <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center print:hidden">
-         <div className="flex items-center gap-4 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-            <button onClick={() => changeMonth(-1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-full text-slate-600 transition">◀</button>
-            <span className="font-bold text-slate-800 w-32 text-center">
-                {format(currentDate, 'MMMM yyyy', { locale: th })}
-            </span>
-            <button onClick={() => changeMonth(1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-full text-slate-600 transition">▶</button>
+      <div className="max-w-[210mm] mx-auto mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 print:hidden">
+         
+         {/* ✅ ชุดควบคุมวันที่ (มีทั้งลูกศร และ Dropdown) */}
+         <div className="flex items-center bg-white p-1.5 rounded-xl shadow-sm border border-slate-200">
+            {/* ปุ่มย้อนหลัง */}
+            <button onClick={() => changeMonth(-1)} className="w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+
+            {/* เส้นคั่น */}
+            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+            {/* Dropdown เลือกเดือน */}
+            <select 
+                value={currentDate.getMonth()} 
+                onChange={handleMonthChange}
+                className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer py-1 px-2 hover:bg-slate-50 rounded-lg transition appearance-none text-center min-w-[80px]"
+            >
+                {months.map((m, idx) => (
+                    <option key={idx} value={idx}>{m}</option>
+                ))}
+            </select>
+
+            {/* Dropdown เลือกปี */}
+            <select 
+                value={currentDate.getFullYear()} 
+                onChange={handleYearChange}
+                className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer py-1 px-1 hover:bg-slate-50 rounded-lg transition appearance-none"
+            >
+                {years.map((y) => (
+                    <option key={y} value={y}>{y + 543}</option> /* แสดงปี พ.ศ. */
+                ))}
+            </select>
+
+            {/* เส้นคั่น */}
+            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+            {/* ปุ่มถัดไป */}
+            <button onClick={() => changeMonth(1)} className="w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
          </div>
+
          <button 
             onClick={() => window.print()} 
             className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center gap-2"
@@ -105,7 +161,6 @@ export default function ReportPage() {
       </div>
 
       {/* --- หน้ากระดาษ A4 --- */}
-      {/* ✅ แก้ไข: ใช้ w-[210mm] แค่ตอนดูหน้าจอ แต่ตอน print ให้ใช้ w-full เพื่อไม่ให้ล้น */}
       <div className="mx-auto bg-white shadow-2xl print:shadow-none w-[210mm] print:w-full min-h-[297mm] print:min-h-0 p-[15mm] print:p-0">
          
          {/* 1. Header หัวกระดาษ */}
@@ -177,7 +232,6 @@ export default function ReportPage() {
          </div>
 
          {/* 3. สรุปท้ายกระดาษ */}
-         {/* ✅ ใช้ break-inside-avoid เพื่อป้องกันไม่ให้ส่วนสรุปขาดครึ่งหน้า */}
          <div className="flex justify-end mb-16 break-inside-avoid">
              <div className="w-1/2">
                  <div className="flex justify-between mb-2 text-sm">
