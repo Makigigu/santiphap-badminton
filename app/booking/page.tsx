@@ -54,7 +54,13 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [minDate, setMinDate] = useState<string>('');
   const [displayDateThai, setDisplayDateThai] = useState('');
+  
+  // Selection State
   const [selectedSlots, setSelectedSlots] = useState<{courtId: number, timeIndex: number}[]>([]);
+  
+  // Modal State (เพิ่มตัวนี้มาคุมการเปิดปิดฟอร์ม)
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
   const [filterCourtId, setFilterCourtId] = useState<string>('all');
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -114,7 +120,7 @@ export default function BookingPage() {
                 return bookingDate === selectedDate &&      
                        b.courtId === court.id &&            
                        isTimeMatch &&                       
-                       b.status !== 'rejected';             
+                       b.status !== 'rejected' && b.status !== 'cancelled';             
             });
 
             if (bookingFound) {
@@ -146,6 +152,7 @@ export default function BookingPage() {
         const buddhistYear = dateObj.getFullYear() + 543;
         setDisplayDateThai(format(dateObj, "EEEEที่ dd MMMM", { locale: th }) + " " + buddhistYear);
         setSelectedSlots([]); 
+        setShowConfirmModal(false); // ปิด Modal เมื่อเปลี่ยนวัน
     }
   }, [selectedDate]);
 
@@ -169,7 +176,6 @@ export default function BookingPage() {
       return sum + (court ? court.price : 0);
   }, 0);
 
-  // ✅ จุดที่แก้ไขสำคัญที่สุดอยู่ตรงนี้!
   const handleConfirmBooking = async () => {
       if (!customerName.trim()) { alert("กรุณากรอกชื่อลูกค้า"); return; }
       if (!phoneNumber.trim()) { alert("กรุณากรอกเบอร์โทรศัพท์"); return; }
@@ -178,7 +184,6 @@ export default function BookingPage() {
       setIsProcessing(true);
 
       try {
-        // สร้าง Array ของ Promise เพื่อยิงจองพร้อมกัน
         const bookingPromises = selectedSlots.map(slot => {
             const timeString = timeSlots[slot.timeIndex];
             const court = courts.find(c => c.id === slot.courtId);
@@ -202,8 +207,6 @@ export default function BookingPage() {
         
         let hasError = false;
         let isConflict = false;
-        
-        // 🔥 สำคัญ: สร้างตัวแปรเก็บ ID ที่จองสำเร็จ
         const successfulBookingIds: number[] = [];
 
         for (const res of responses) {
@@ -211,7 +214,6 @@ export default function BookingPage() {
                 hasError = true;
                 if (res.status === 409) isConflict = true;
             } else {
-                // ถ้าจองสำเร็จ ให้ดึง ID ออกมาเก็บไว้
                 const data = await res.json();
                 if (data.id) {
                     successfulBookingIds.push(data.id);
@@ -227,14 +229,14 @@ export default function BookingPage() {
              }
              await fetchLatestData(); 
              setSelectedSlots([]);
+             setShowConfirmModal(false);
              setIsProcessing(false);
              return;
         }
 
-        // ✅ ส่ง ID ทั้งหมดที่จองได้ ไปให้หน้า Payment
         const bookingDetails = {
             id: `BK-GROUP-${Date.now()}`, 
-            bookingIds: successfulBookingIds, // ส่ง ID จริงจาก DB ไปด้วย
+            bookingIds: successfulBookingIds, 
             customerName, 
             phoneNumber,
             date: displayDateThai,
@@ -248,8 +250,6 @@ export default function BookingPage() {
         };
 
         localStorage.setItem('tempBooking', JSON.stringify(bookingDetails));
-        
-        // ไปหน้าจ่ายเงิน
         router.push(`/payment?price=${totalPrice}&count=${selectedSlots.length}`);
         
       } catch (error) {
@@ -262,7 +262,7 @@ export default function BookingPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-slate-500">กำลังโหลดข้อมูล...</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-32"> {/* เพิ่ม Padding ล่างเผื่อพื้นที่ให้ Sticky Bar */}
       
       <nav className="bg-white shadow-sm sticky top-0 z-20 border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -296,9 +296,6 @@ export default function BookingPage() {
                     </select>
                 </div>
             </div>
-            <div className="text-center mt-6">
-                <button className="bg-red-600 text-white px-10 py-3 rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition">ค้นหา</button>
-            </div>
         </div>
 
         {/* Legend */}
@@ -306,9 +303,9 @@ export default function BookingPage() {
             <div className="text-3xl font-extrabold text-slate-800 mb-4 drop-shadow-sm">{displayDateThai}</div>
             <div className="flex flex-wrap justify-center gap-4 md:gap-6 text-xs md:text-sm font-bold">
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-400 rounded shadow-sm"></div><span className="text-slate-700">ว่าง</span></div>
-                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-500 rounded shadow-sm"></div><span className="text-slate-700">ไม่ว่าง (จองแล้ว)</span></div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-500 rounded shadow-sm"></div><span className="text-slate-700">ไม่ว่าง</span></div>
                 <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-400 rounded shadow-sm ring-2 ring-blue-500"></div><span className="text-slate-700">ที่เลือกไว้</span></div>
-                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-200 rounded shadow-sm"></div><span className="text-slate-400">เวลาผ่านไปแล้ว</span></div>
+                <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-200 rounded shadow-sm"></div><span className="text-slate-400">ปิด/ผ่านไปแล้ว</span></div>
             </div>
         </div>
 
@@ -329,7 +326,6 @@ export default function BookingPage() {
                                 <div className="absolute inset-0 z-20 bg-slate-100/90 flex flex-col items-center justify-center text-slate-500">
                                     <span className="text-3xl mb-2">🛠️</span>
                                     <span className="font-bold text-lg">ปิดปรับปรุง</span>
-                                    <span className="text-xs mt-1">ขออภัยในความไม่สะดวก</span>
                                 </div>
                             )}
 
@@ -339,7 +335,6 @@ export default function BookingPage() {
                                     <span className="text-[11px] text-slate-600 font-bold block mt-0.5">{court.type}</span>
                                     <span className="text-[10px] text-blue-600 font-bold">฿{court.price}/ชม.</span>
                                 </div>
-                                <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold">STATUS</span>
                             </div>
                             <div className="divide-y divide-slate-100 bg-slate-50">
                                 {timeSlots.map((time, index) => {
@@ -378,10 +373,7 @@ export default function BookingPage() {
                                             ) : status === 'passed' ? (
                                                 <span className="text-[10px]">ปิด</span>
                                             ) : (
-                                                <div className="w-5 h-3 border border-slate-600/30 opacity-40 relative">
-                                                    <div className="absolute inset-x-0 top-1/2 border-t border-slate-600/30"></div>
-                                                    <div className="absolute inset-y-0 left-1/2 border-l border-slate-600/30"></div>
-                                                </div>
+                                                <div className="w-5 h-3 border border-slate-600/30 opacity-40"></div>
                                             )}
                                         </div>
                                     );
@@ -393,55 +385,74 @@ export default function BookingPage() {
             </div>
         </div>
 
-        {/* ฟอร์มยืนยัน */}
-        {selectedSlots.length > 0 && (
-            <div className="fixed bottom-0 left-0 right-0 p-4 z-30 bg-white/90 backdrop-blur-sm border-t border-slate-200 shadow-2xl md:relative md:bg-transparent md:border-none md:shadow-none md:p-0 md:mt-8">
-                <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 max-w-2xl mx-auto relative overflow-hidden animate-slide-up">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-cyan-500"></div>
-                    <div className="text-center mb-8">
+        {/* ✅ Sticky Bottom Bar (แถบสรุปด้านล่าง ไม่บังจอ) */}
+        {selectedSlots.length > 0 && !showConfirmModal && (
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4 z-40 animate-slide-up">
+               <div className="max-w-2xl mx-auto flex justify-between items-center">
+                  <div className="flex flex-col">
+                     <span className="text-xs text-slate-500 font-bold">รายการที่เลือก</span>
+                     <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-extrabold text-blue-600">{selectedSlots.length}</span>
+                        <span className="text-sm text-slate-600">รายการ</span>
+                        <span className="text-lg font-bold text-slate-800 ml-2">{totalPrice.toLocaleString()} บาท</span>
+                     </div>
+                  </div>
+
+                  <button 
+                    onClick={() => setShowConfirmModal(true)} 
+                    className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition"
+                  >
+                    ดำเนินการต่อ
+                  </button>
+               </div>
+            </div>
+        )}
+
+        {/* ✅ Modal ยืนยันการจอง (แสดงเมื่อกดปุ่มดำเนินการต่อเท่านั้น) */}
+        {showConfirmModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
+                <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full relative max-h-[90vh] overflow-y-auto animate-scale-in">
+                    
+                    <div className="flex justify-between items-center mb-6 border-b pb-4">
                         <h2 className="text-2xl font-extrabold text-slate-800">ยืนยันการจอง</h2>
-                        <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-6 inline-block text-left w-full">
-                            <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
-                                <span className="text-slate-500 text-sm">วันที่:</span>
-                                <span className="text-slate-800 font-bold">{displayDateThai}</span>
-                            </div>
-                            <div className="space-y-2 mb-4 max-h-40 overflow-y-auto pr-2">
-                                {selectedSlots.sort((a, b) => (a.courtId - b.courtId) || (a.timeIndex - b.timeIndex)).map((slot, idx) => {
-                                    const c = courts.find(c => c.id === slot.courtId);
-                                    return (
-                                        <div key={idx} className="flex justify-between items-center text-sm">
-                                            <span className="text-slate-700 font-medium">{c?.name.replace('COURT', 'สนาม')} <span className="text-slate-400 text-xs">({timeSlots[slot.timeIndex]})</span></span>
-                                            <span className="text-slate-800 font-bold">{c?.price}.-</span>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                            <div className="border-t border-blue-200 mt-2 pt-3 flex justify-between items-center">
-                                <span className="text-blue-800 font-bold text-lg">ราคารวม ({selectedSlots.length} รายการ):</span>
-                                <span className="text-blue-600 font-extrabold text-2xl">{totalPrice.toLocaleString()} บาท</span>
-                            </div>
+                        <button onClick={() => setShowConfirmModal(false)} className="bg-slate-100 hover:bg-slate-200 p-2 rounded-full text-slate-500 hover:text-red-500 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-slate-500 text-sm">วันที่:</span>
+                            <span className="text-slate-800 font-bold">{displayDateThai}</span>
+                        </div>
+                        <div className="space-y-2 mb-3 max-h-40 overflow-y-auto pr-1">
+                            {selectedSlots.map((slot, idx) => {
+                                const c = courts.find(c => c.id === slot.courtId);
+                                return (
+                                    <div key={idx} className="flex justify-between items-center text-sm bg-white p-2 rounded border border-blue-100">
+                                        <span className="text-slate-700 font-medium">{c?.name.replace('COURT', 'สนาม')} ({timeSlots[slot.timeIndex].split('-')[0]})</span>
+                                        <span className="text-slate-800 font-bold">{c?.price}.-</span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                        <div className="border-t border-blue-200 pt-3 flex justify-between items-center">
+                            <span className="text-blue-800 font-bold">ราคารวม:</span>
+                            <span className="text-blue-600 font-extrabold text-2xl">{totalPrice.toLocaleString()} บาท</span>
                         </div>
                     </div>
-                    <div className="space-y-6">
+
+                    <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-bold text-slate-500 mb-2 pl-2">ชื่อลูกค้า <span className="text-red-500">*</span> :</label>
-                            <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} disabled={isProcessing} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium transition-all disabled:opacity-50" placeholder="ระบุชื่อผู้จอง" />
+                            <label className="block text-sm font-bold text-slate-500 mb-1 pl-1">ชื่อลูกค้า <span className="text-red-500">*</span></label>
+                            <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} disabled={isProcessing} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium" placeholder="ระบุชื่อผู้จอง" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-slate-500 mb-2 pl-2">เบอร์โทร <span className="text-red-500">*</span> :</label>
-                            <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} disabled={isProcessing} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium transition-all disabled:opacity-50" placeholder="0xx-xxx-xxxx" />
+                            <label className="block text-sm font-bold text-slate-500 mb-1 pl-1">เบอร์โทร <span className="text-red-500">*</span></label>
+                            <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} disabled={isProcessing} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium" placeholder="0xx-xxx-xxxx" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-500 mb-3 pl-2">วิธีการชำระเงิน :</label>
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition">
-                                    <input type="radio" name="payment" className="w-5 h-5 text-blue-600 bg-white border-slate-300 focus:ring-blue-500" defaultChecked readOnly />
-                                    <span className="text-slate-700 font-bold">โอนเงิน (ชำระทันที)</span>
-                                </label>
-                            </div>
-                        </div>
+                        
                         <div className="pt-2">
-                            {/* ปุ่มยืนยันการจอง */}
                             <button 
                                 onClick={handleConfirmBooking} 
                                 disabled={isProcessing}
@@ -449,23 +460,14 @@ export default function BookingPage() {
                                     ${isProcessing ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'}
                                 `}
                             >
-                                {isProcessing ? (
-                                    <>
-                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        กำลังตรวจสอบความถูกต้อง...
-                                    </>
-                                ) : (
-                                    "ยืนยันการจอง"
-                                )}
+                                {isProcessing ? "กำลังบันทึก..." : `ยืนยันการจอง (${totalPrice} บาท)`}
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
         )}
+
       </main>
     </div>
   );
