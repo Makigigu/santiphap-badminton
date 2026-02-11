@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { format, parseISO, getDaysInMonth, startOfMonth, addMonths, subMonths } from 'date-fns';
+import { format, getDaysInMonth, startOfMonth, addMonths } from 'date-fns';
 import { th } from 'date-fns/locale';
 
 type Booking = {
@@ -12,10 +12,10 @@ type Booking = {
 };
 
 type DailyRevenue = {
-  date: string;     // 2026-02-01
-  day: number;      // 1
-  count: number;    // จำนวนรายการ
-  total: number;    // ยอดเงินรวม
+  date: string;
+  day: number;
+  count: number;
+  total: number;
 };
 
 export default function ReportPage() {
@@ -42,34 +42,32 @@ export default function ReportPage() {
     fetchRevenue();
   }, [currentDate]);
 
-  // --- Logic คำนวณยอดรายวัน ---
+  // คำนวณยอดรายวัน
   const dailyReport = useMemo(() => {
     const daysInMonth = getDaysInMonth(currentDate);
     const report: DailyRevenue[] = [];
     const monthStart = startOfMonth(currentDate);
 
-    // วนลูปสร้างตาราง 1 ถึง วันสิ้นเดือน
     for (let i = 1; i <= daysInMonth; i++) {
         const dateStr = format(new Date(monthStart.getFullYear(), monthStart.getMonth(), i), 'yyyy-MM-dd');
-        
-        // หา Booking ของวันนี้
-        const daysBookings = bookings.filter(b => 
-            format(new Date(b.date), 'yyyy-MM-dd') === dateStr
-        );
-
+        const daysBookings = bookings.filter(b => format(new Date(b.date), 'yyyy-MM-dd') === dateStr);
         const total = daysBookings.reduce((sum, b) => sum + b.price, 0);
 
-        report.push({
-            date: dateStr,
-            day: i,
-            count: daysBookings.length,
-            total: total
-        });
+        // เก็บข้อมูลเฉพาะวันที่มีรายได้ (เพื่อให้ตารางไม่ยาวเกินไปเหมือนในตัวอย่าง)
+        // หรือถ้าอยากโชว์ทุกวัน ให้เอา if(total > 0) ออก
+        if (total > 0) { 
+            report.push({
+                date: dateStr,
+                day: i,
+                count: daysBookings.length,
+                total: total
+            });
+        }
     }
     return report;
   }, [bookings, currentDate]);
 
-  // ยอดรวมทั้งเดือน
+  // คำนวณยอดรวมทั้งสิ้น
   const grandTotal = bookings.reduce((sum, b) => sum + b.price, 0);
   const totalBookings = bookings.length;
 
@@ -78,98 +76,142 @@ export default function ReportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-900 print:bg-white print:p-0">
+    <div className="min-h-screen bg-slate-100 p-8 font-sans text-slate-900 print:bg-white print:p-0">
       
-      {/* --- ส่วนควบคุม (ไม่แสดงตอน Print) --- */}
-      <div className="max-w-4xl mx-auto mb-8 flex justify-between items-center print:hidden">
-         <div className="flex items-center gap-4">
-            <button onClick={() => changeMonth(-1)} className="p-2 bg-white rounded-full shadow hover:bg-slate-100">◀</button>
-            <h1 className="text-2xl font-bold text-slate-800">
+      {/* --- ส่วนควบคุม (ซ่อนตอน Print) --- */}
+      <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center print:hidden">
+         <div className="flex items-center gap-4 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
+            <button onClick={() => changeMonth(-1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-full text-slate-600 transition">◀</button>
+            <span className="font-bold text-slate-800 w-32 text-center">
                 {format(currentDate, 'MMMM yyyy', { locale: th })}
-            </h1>
-            <button onClick={() => changeMonth(1)} className="p-2 bg-white rounded-full shadow hover:bg-slate-100">▶</button>
+            </span>
+            <button onClick={() => changeMonth(1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-full text-slate-600 transition">▶</button>
          </div>
          <button 
             onClick={() => window.print()} 
-            className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center gap-2"
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center gap-2"
          >
-            🖨️ พิมพ์รายงาน
+            🖨️ พิมพ์เอกสาร
          </button>
       </div>
 
-      {/* --- เอกสารรายงาน (A4 Style) --- */}
-      <div className="max-w-4xl mx-auto bg-white p-10 rounded-3xl shadow-xl print:shadow-none print:w-full print:max-w-none">
+      {/* --- หน้ากระดาษ A4 (Paper Layout) --- */}
+      <div className="mx-auto bg-white shadow-2xl print:shadow-none print:w-full" style={{ width: '210mm', minHeight: '297mm', padding: '15mm' }}>
          
-         {/* Header เอกสาร */}
-         <div className="text-center border-b-2 border-slate-800 pb-6 mb-6">
-            <h1 className="text-3xl font-extrabold text-slate-900">สรุปรายได้ประจำเดือน</h1>
-            <p className="text-lg text-slate-600 mt-2">
-                สนามแบดมินตัน สันติภาพ จ.น่าน
-            </p>
-            <div className="mt-4 inline-block bg-slate-100 px-6 py-2 rounded-full border border-slate-200 print:bg-transparent print:border-0">
-                <span className="font-bold text-xl text-blue-800">
-                    ประจำเดือน {format(currentDate, 'MMMM พ.ศ. yyyy', { locale: th })}
-                </span>
+         {/* 1. Header หัวกระดาษ */}
+         <div className="flex justify-between items-start mb-8">
+            <div className="flex items-center gap-3">
+                {/* โลโก้ (ถ้ามี) หรือใช้ Icon */}
+                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white text-2xl font-bold">
+                    ส
+                </div>
+                <div>
+                    <h1 className="text-xl font-extrabold text-slate-800">สนามแบดมินตัน สันติภาพ</h1>
+                    <p className="text-xs text-slate-500">รายงานรายได้ประจำเดือน (Monthly Revenue Report)</p>
+                </div>
+            </div>
+            <div className="text-right">
+                <div className="text-sm font-bold text-slate-600">ประจำเดือน</div>
+                <div className="text-lg font-extrabold text-blue-600">{format(currentDate, 'MMMM พ.ศ. yyyy', { locale: th })}</div>
             </div>
          </div>
 
-         {/* สรุปยอดรวม (Highlight) */}
-         <div className="grid grid-cols-2 gap-6 mb-8">
-             <div className="bg-green-50 p-6 rounded-2xl border border-green-100 text-center print:border-2 print:border-slate-300">
-                 <p className="text-slate-500 font-bold text-sm uppercase">รายได้รวมทั้งสิ้น</p>
-                 <p className="text-4xl font-extrabold text-green-700 mt-2">{grandTotal.toLocaleString()} บาท</p>
-             </div>
-             <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 text-center print:border-2 print:border-slate-300">
-                 <p className="text-slate-500 font-bold text-sm uppercase">จำนวนการจอง (สำเร็จ)</p>
-                 <p className="text-4xl font-extrabold text-blue-700 mt-2">{totalBookings} รายการ</p>
-             </div>
-         </div>
-
-         {/* ตารางรายละเอียดรายวัน */}
-         <div className="overflow-hidden rounded-xl border border-slate-200 print:border-2 print:border-slate-800">
-             <table className="w-full text-left border-collapse">
-                 <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-sm print:bg-slate-200">
-                     <tr>
-                         <th className="p-4 border-b border-slate-200 print:border-slate-800">วันที่</th>
-                         <th className="p-4 border-b border-slate-200 print:border-slate-800 text-center">จำนวนการจอง</th>
-                         <th className="p-4 border-b border-slate-200 print:border-slate-800 text-right">รายได้ (บาท)</th>
+         {/* 2. ตารางข้อมูล (Bordered Table แบบในรูป) */}
+         <div className="mb-8">
+             <table className="w-full text-left border-collapse border border-slate-300 text-sm">
+                 <thead>
+                     <tr className="bg-slate-100 text-slate-700">
+                         <th className="border border-slate-300 px-4 py-2 w-16 text-center">ลำดับ</th>
+                         <th className="border border-slate-300 px-4 py-2 text-center">วันที่</th>
+                         <th className="border border-slate-300 px-4 py-2 w-1/3">รายการ</th>
+                         <th className="border border-slate-300 px-4 py-2 text-center">จำนวน (รายการ)</th>
+                         <th className="border border-slate-300 px-4 py-2 text-right">จำนวนเงิน (บาท)</th>
                      </tr>
                  </thead>
-                 <tbody className="divide-y divide-slate-100 print:divide-slate-300">
-                     {dailyReport.map((day, index) => {
-                         // ไฮไลท์เสาร์-อาทิตย์
-                         const dateObj = new Date(day.date);
-                         const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-                         
-                         return (
-                             <tr key={day.day} className={`${isWeekend ? 'bg-slate-50/50 print:bg-slate-100' : ''} hover:bg-blue-50`}>
-                                 <td className="p-3 pl-4 font-medium text-slate-700">
-                                     {format(dateObj, 'd MMM (EEEE)', { locale: th })}
+                 <tbody>
+                     {dailyReport.length > 0 ? (
+                         dailyReport.map((day, index) => (
+                             <tr key={day.day}>
+                                 <td className="border border-slate-300 px-4 py-2 text-center">{index + 1}</td>
+                                 <td className="border border-slate-300 px-4 py-2 text-center">
+                                     {format(new Date(day.date), 'dd/MM/yyyy')}
                                  </td>
-                                 <td className="p-3 text-center text-slate-500">
-                                     {day.count > 0 ? (
-                                         <span className="font-bold text-slate-800">{day.count}</span>
-                                     ) : '-'}
+                                 <td className="border border-slate-300 px-4 py-2">
+                                     ค่าบริการสนามแบดมินตัน
                                  </td>
-                                 <td className="p-3 pr-4 text-right font-bold text-slate-800">
-                                     {day.total > 0 ? day.total.toLocaleString() : <span className="text-slate-300">-</span>}
+                                 <td className="border border-slate-300 px-4 py-2 text-center">
+                                     {day.count}
+                                 </td>
+                                 <td className="border border-slate-300 px-4 py-2 text-right font-medium">
+                                     {day.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                  </td>
                              </tr>
-                         )
-                     })}
+                         ))
+                     ) : (
+                         <tr>
+                             <td colSpan={5} className="border border-slate-300 px-4 py-8 text-center text-slate-400 italic">
+                                 -- ไม่มีข้อมูลรายได้ในเดือนนี้ --
+                             </td>
+                         </tr>
+                     )}
                  </tbody>
-                 <tfoot className="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300 print:bg-slate-200">
-                     <tr>
-                         <td className="p-4 text-lg">รวมทั้งสิ้น</td>
-                         <td className="p-4 text-center text-lg">{totalBookings}</td>
-                         <td className="p-4 text-right text-lg">{grandTotal.toLocaleString()}.-</td>
+                 {/* Footer ของตาราง */}
+                 <tfoot>
+                     <tr className="bg-slate-50 font-bold text-slate-800">
+                         <td colSpan={3} className="border border-slate-300 px-4 py-2 text-center">รวมทั้งสิ้น (Total)</td>
+                         <td className="border border-slate-300 px-4 py-2 text-center">{totalBookings}</td>
+                         <td className="border border-slate-300 px-4 py-2 text-right text-blue-600 text-lg">
+                             {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                         </td>
                      </tr>
                  </tfoot>
              </table>
          </div>
 
-         <div className="mt-10 text-center text-xs text-slate-400 print:block hidden">
-             พิมพ์รายงานเมื่อ: {format(new Date(), 'd MMMM yyyy HH:mm น.', { locale: th })}
+         {/* 3. สรุปท้ายกระดาษ (Summary Section) */}
+         <div className="flex justify-end mb-16">
+             <div className="w-1/2">
+                 <div className="flex justify-between mb-2 text-sm">
+                     <span className="text-slate-600">เงินสด (Cash):</span>
+                     <span className="font-medium">0.00</span>
+                 </div>
+                 <div className="flex justify-between mb-2 text-sm">
+                     <span className="text-slate-600">เงินโอน (Transfer):</span>
+                     <span className="font-medium">{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                 </div>
+                 <div className="flex justify-between mb-2 text-sm">
+                     <span className="text-slate-600">ภาษีมูลค่าเพิ่ม (VAT 7%):</span>
+                     <span className="font-medium">-</span> 
+                 </div>
+                 <div className="border-t border-slate-300 mt-2 pt-2 flex justify-between font-bold text-base">
+                     <span>รวมสุทธิ:</span>
+                     <span className="text-blue-700">{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} บาท</span>
+                 </div>
+             </div>
+         </div>
+
+         {/* 4. ส่วนเซ็นชื่อ (Signatures) */}
+         <div className="flex justify-between text-center px-10 text-sm">
+             <div className="flex flex-col items-center">
+                 <div className="mb-10">จัดทำโดย</div>
+                 <div className="w-40 border-b border-slate-400 border-dotted mb-2"></div>
+                 <div className="text-slate-500">(.......................................................)</div>
+                 <div className="mt-1 font-bold text-slate-700">เจ้าหน้าที่สนาม</div>
+                 <div className="text-[10px] text-slate-400 mt-1">วันที่ ...../...../..........</div>
+             </div>
+
+             <div className="flex flex-col items-center">
+                 <div className="mb-10">ผู้อนุมัติ</div>
+                 <div className="w-40 border-b border-slate-400 border-dotted mb-2"></div>
+                 <div className="text-slate-500">(.......................................................)</div>
+                 <div className="mt-1 font-bold text-slate-700">ผู้จัดการ / เจ้าของกิจการ</div>
+                 <div className="text-[10px] text-slate-400 mt-1">วันที่ ...../...../..........</div>
+             </div>
+         </div>
+
+         {/* Footer ล่างสุด (Print Date) */}
+         <div className="mt-20 text-right text-[10px] text-slate-400">
+             พิมพ์เมื่อ: {format(new Date(), 'd MMMM yyyy เวลา HH:mm น.', { locale: th })}
          </div>
 
       </div>
