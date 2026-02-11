@@ -304,7 +304,7 @@ export default function BookingsPage() {
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                 <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 animate-scale-in max-h-[95vh] overflow-y-auto">
                     <div className="flex justify-between items-center mb-4 border-b pb-2">
-                        <h3 className="text-xl font-bold text-slate-800">✏️ จัดการการจอง ({editingGroup.ids.length} รายการ)</h3>
+                        <h3 className="text-xl font-bold text-slate-800">จัดการการจอง ({editingGroup.ids.length} รายการ)</h3>
                         <button onClick={() => setEditingGroup(null)} className="text-slate-400 hover:text-red-500 text-2xl">×</button>
                     </div>
                     
