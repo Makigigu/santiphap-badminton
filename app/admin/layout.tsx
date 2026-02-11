@@ -17,6 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'ภาพรวม (Dashboard)', path: '/admin' },
     { name: 'ประวัติการจอง', path: '/admin/bookings' },
     { name: 'ตั้งค่าสนาม/ราคา', path: '/admin/settings' },
+    { name: 'รายงานรายได้', path: '/admin/report' },
   ];
 
   return (
