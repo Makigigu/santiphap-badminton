@@ -222,17 +222,17 @@ export default function DashboardPage() {
        {/* Pending Table (แบบรวมกลุ่ม) */}
        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-orange-50/50">
-                <h2 className="text-lg font-extrabold text-slate-800">🔔 รายการล่าสุด (รอตรวจสอบ & รอโอน)</h2>
+                <h2 className="text-lg font-extrabold text-slate-800">รายการล่าสุด (รอตรวจสอบ & รอโอน)</h2>
                 
                 <div className="flex items-center gap-3">
                     <button 
                         onClick={handleCleanup} 
                         className="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-full font-bold hover:bg-red-200 transition flex items-center gap-1"
                     >
-                        <span>🧹</span> ล้างรายการค้าง
+                        <span></span> ล้างรายการค้าง
                     </button>
                     <button onClick={fetchData} className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1">
-                        <span>🔄</span> รีเฟรช
+                        <span></span> รีเฟรช
                     </button>
                 </div>
             </div>
