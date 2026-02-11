@@ -27,7 +27,7 @@ export default function Home() {
 
       {/* --- Hero Section --- */}
       <div className="relative h-[500px] md:h-[600px] flex items-center justify-center mt-16 overflow-hidden">
-        {/* Background Image (คงเดิม 100%) */}
+        {/* Background Image */}
         <div 
             className="absolute inset-0 bg-cover bg-center animate-kenburns"
             style={{
@@ -241,7 +241,7 @@ export default function Home() {
                         <div className="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10 opacity-50"></div>
                         <div className="absolute bottom-0 left-0 w-16 h-16 bg-blue-200 rounded-full -ml-8 -mb-8 opacity-50"></div>
                         
-                        <p className="text-blue-800 font-bold mb-4 text-lg relative z-10">💳 ช่องทางการชำระเงิน</p>
+                        <p className="text-blue-800 font-bold mb-4 text-lg relative z-10">ช่องทางการชำระเงิน</p>
                         <div className="bg-white p-6 rounded-2xl shadow-sm inline-block w-full max-w-md relative z-10">
                                 <div className="text-slate-500 text-xs font-bold uppercase mb-1">ธนาคารกสิกรไทย</div>
                                 <div className="text-2xl font-extrabold text-blue-600 tracking-wider">XXX-X-XXXXX-X</div>
