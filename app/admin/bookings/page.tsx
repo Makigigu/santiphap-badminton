@@ -439,7 +439,7 @@ export default function BookingsPage() {
                 {['all', 'PAID_VERIFY', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'].map(status => (
                     <button key={status} onClick={() => setFilterStatus(status)}
                         className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${filterStatus === status ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}>
-                        {status === 'PAID_VERIFY' ? '⏳ รอตรวจสอบ' : statusLabels[status] || status}
+                        {status === 'PAID_VERIFY' ? 'รอตรวจสอบ' : statusLabels[status] || status}
                     </button>
                 ))}
             </div>
@@ -504,7 +504,7 @@ export default function BookingsPage() {
                                         </td>
                                         <td className="p-2 md:p-4 text-center md:table-cell flex justify-end">
                                             <button onClick={() => openEditModal(b)} className="bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 p-2 rounded-lg transition" title="จัดการกลุ่มนี้">
-                                                ✏️
+                                                แก้ไข
                                             </button>
                                         </td>
                                     </tr>

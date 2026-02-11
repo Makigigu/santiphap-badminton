@@ -14,9 +14,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const menuItems = [
-    { name: '📊 ภาพรวม (Dashboard)', path: '/admin' },
-    { name: '📅 ประวัติการจอง', path: '/admin/bookings' },
-    { name: '⚙️ ตั้งค่าสนาม/ราคา', path: '/admin/settings' },
+    { name: 'ภาพรวม (Dashboard)', path: '/admin' },
+    { name: 'ประวัติการจอง', path: '/admin/bookings' },
+    { name: 'ตั้งค่าสนาม/ราคา', path: '/admin/settings' },
   ];
 
   return (
@@ -55,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
              onClick={handleLogout}
              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-600 hover:text-white transition font-bold text-sm"
            >
-             <span>🚪</span> ออกจากระบบ
+             <span></span> ออกจากระบบ
            </button>
         </div>
       </aside>
