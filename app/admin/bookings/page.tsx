@@ -18,7 +18,6 @@ type Booking = {
   court: { id: number; name: string; type: string };
 };
 
-// Type สำหรับกลุ่ม (มี ids array)
 type GroupedBooking = Booking & {
     ids: string[];
     totalPrice: number;
@@ -49,7 +48,7 @@ export default function BookingsPage() {
   const [filterDate, setFilterDate] = useState<string>(''); 
   const [loading, setLoading] = useState(true);
 
-  // Edit Modal State (ใช้ GroupedBooking แทน)
+  // Edit Modal State
   const [editingGroup, setEditingGroup] = useState<GroupedBooking | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -57,8 +56,7 @@ export default function BookingsPage() {
       date: '', 
       courtId: 0, 
       status: '',
-      // selectedTimes เอาไว้อ่านค่าเฉยๆ ในโหมดกลุ่มจะไม่ให้แก้เวลา เพื่อกันข้อมูลพัง
-      selectedTimes: [] as string[] 
+      selectedTimes: [] as string[] // เก็บเวลาที่เลือกใหม่
   });
 
   useEffect(() => {
@@ -79,11 +77,11 @@ export default function BookingsPage() {
       if (res.ok) setCourts(await res.json());
   };
 
-  // ✅ ลบแบบกลุ่ม (Delete Group)
+  // --- Functions ---
+
   const handleDeleteGroup = async (ids: string[]) => {
       if (!confirm(`⚠️ คุณต้องการลบ ${ids.length} รายการนี้ถาวรหรือไม่?`)) return;
       try {
-          // วนลูปส่งคำขอลบทีละ ID (หรือจะแก้ API ให้รับ array ก็ได้ แต่อันนี้ง่ายสุด)
           await Promise.all(ids.map(id => 
               fetch('/api/bookings', {
                   method: 'DELETE',
@@ -91,7 +89,6 @@ export default function BookingsPage() {
                   body: JSON.stringify({ id }),
               })
           ));
-          
           alert('ลบรายการเรียบร้อย');
           setEditingGroup(null);
           fetchData();
@@ -111,11 +108,10 @@ export default function BookingsPage() {
       } catch (error) { console.error(error); }
   };
 
-  // เปิด Modal แก้ไข (รับค่าเป็น Group)
   const openEditModal = (group: GroupedBooking) => {
       setEditingGroup(group);
       
-      // เอาเวลาทั้งหมดมารวมกัน
+      // แปลงเวลา "18:00-19:00 น." -> "18:00-19:00" (ตัด น. ออกเพื่อเทียบ)
       const timesArray = group.timeSlots.map(t => t.replace(' น.', '').trim()).sort();
 
       setEditForm({
@@ -126,32 +122,109 @@ export default function BookingsPage() {
       });
   };
 
-  // ✅ บันทึกการแก้ไข (Update Group)
+  // ✅ เช็คว่าเวลาว่างไหม (ไม่นับตัวเอง)
+  const isSlotOccupied = (slot: string) => {
+      if (!editingGroup) return false;
+      return bookings.some(b => 
+          // วันเดียวกัน + สนามเดียวกัน + เวลานี้
+          format(new Date(b.date), 'yyyy-MM-dd') === editForm.date &&
+          b.court.id === editForm.courtId &&
+          b.startTime.includes(slot) &&
+          // สถานะต้องไม่ถูกยกเลิก/ปฏิเสธ
+          !['REJECTED', 'CANCELLED', 'rejected', 'cancelled'].includes(b.status) &&
+          // และต้องไม่ใช่ ID ของกลุ่มที่เรากำลังแก้อยู่
+          !editingGroup.ids.includes(b.id)
+      );
+  };
+
+  const toggleEditTimeSlot = (slot: string) => {
+      setEditForm(prev => {
+          const exists = prev.selectedTimes.includes(slot);
+          return exists 
+            ? { ...prev, selectedTimes: prev.selectedTimes.filter(t => t !== slot) }
+            : { ...prev, selectedTimes: [...prev.selectedTimes, slot].sort() };
+      });
+  };
+
+  // ✅ ระบบบันทึกแบบอัจฉริยะ (Sync Changes)
   const handleSaveEdit = async () => {
       if (!editingGroup) return;
-      if (!confirm(`ยืนยันการอัปเดตข้อมูลทั้ง ${editingGroup.ids.length} รายการ?`)) return;
+      if (editForm.selectedTimes.length === 0) return alert("กรุณาเลือกเวลาอย่างน้อย 1 ช่อง หรือกดลบทั้งกลุ่ม");
+      if (!confirm(`ยืนยันการแก้ไขข้อมูล?\n(จำนวนชั่วโมง: ${editForm.selectedTimes.length} ชม.)`)) return;
       
       try {
-          // อัปเดตสถานะ/วันที่/สนาม ให้กับทุก ID ในกลุ่ม
-          await Promise.all(editingGroup.ids.map(id => 
-              fetch('/api/bookings', {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                      id: id,
-                      date: editForm.date,
-                      // หมายเหตุ: เราไม่อัปเดต startTime ในโหมดกลุ่ม เพราะจะทำให้เวลาซ้ำกันทุกรายการ
-                      // เราจะอัปเดตแค่ สถานะ, วันที่, สนาม
-                      courtId: editForm.courtId,
-                      status: editForm.status,
-                  })
-              })
-          ));
+          const originalIds = editingGroup.ids;
+          const newTimes = editForm.selectedTimes;
+          const selectedCourt = courts.find(c => c.id === editForm.courtId);
+          const unitPrice = selectedCourt ? selectedCourt.price : 0;
 
-          alert("บันทึกสำเร็จ"); 
+          const promises = [];
+
+          // 1. อัปเดตรายการเดิมที่มีอยู่ (Update Existing)
+          // จับคู่ ID เดิม กับ เวลาใหม่ (ตัวต่อตัว)
+          const commonCount = Math.min(originalIds.length, newTimes.length);
+          for (let i = 0; i < commonCount; i++) {
+              promises.push(
+                  fetch('/api/bookings', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          id: originalIds[i],
+                          date: editForm.date,
+                          startTime: newTimes[i], // ใช้เวลาใหม่
+                          courtId: editForm.courtId,
+                          status: editForm.status,
+                          // อัปเดตราคาด้วย (เผื่อย้ายไปสนามที่แพงขึ้น/ถูกลง)
+                          price: unitPrice 
+                      })
+                  })
+              );
+          }
+
+          // 2. ถ้าเลือกเวลาเพิ่ม -> สร้างรายการใหม่ (Create New)
+          if (newTimes.length > originalIds.length) {
+             for (let i = commonCount; i < newTimes.length; i++) {
+                 promises.push(
+                     fetch('/api/bookings', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             customerName: editingGroup.customerName,
+                             phoneNumber: editingGroup.phoneNumber,
+                             date: editForm.date,
+                             startTime: newTimes[i],
+                             courtId: editForm.courtId,
+                             price: unitPrice,
+                             status: editForm.status,
+                             slipUrl: editingGroup.slipUrl // ใช้สลิปเดิม
+                         })
+                     })
+                 );
+             }
+          }
+
+          // 3. ถ้าเลือกเวลาน้อยลง -> ลบรายการส่วนเกินทิ้ง (Delete Excess)
+          if (originalIds.length > newTimes.length) {
+              for (let i = commonCount; i < originalIds.length; i++) {
+                  promises.push(
+                      fetch('/api/bookings', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: originalIds[i] })
+                      })
+                  );
+              }
+          }
+
+          await Promise.all(promises);
+          alert("บันทึกข้อมูลเรียบร้อย"); 
           setEditingGroup(null); 
           fetchData();
-      } catch (error) { console.error(error); alert("เกิดข้อผิดพลาด"); }
+
+      } catch (error) { 
+          console.error(error); 
+          alert("เกิดข้อผิดพลาด"); 
+      }
   };
 
   // Helper: เลือกสี Badge
@@ -166,9 +239,8 @@ export default function BookingsPage() {
       }
   };
 
-  // --- Logic Grouping (หัวใจสำคัญ) ---
+  // Logic Grouping
   const groupedBookings = useMemo(() => {
-    // 1. กรองข้อมูลตาม Filter
     const filtered = bookings.filter(b => {
         const matchesStatus = filterStatus === 'all' || b.status.toUpperCase() === filterStatus.toUpperCase();
         let matchesDate = true;
@@ -178,7 +250,6 @@ export default function BookingsPage() {
         return matchesStatus && matchesDate;
     });
 
-    // 2. จัดกลุ่มตาม "วันที่" ก่อน (เพื่อให้แสดงเป็นหัวข้อวัน)
     const dateGroups: { [key: string]: Booking[] } = {};
     filtered.forEach(booking => {
         const dateKey = format(new Date(booking.date), 'yyyy-MM-dd');
@@ -186,7 +257,6 @@ export default function BookingsPage() {
         dateGroups[dateKey].push(booking);
     });
 
-    // 3. ในแต่ละวัน ให้จัดกลุ่มย่อยตาม "ลูกค้า+สนาม+สถานะ" (Grouping Logic)
     return Object.keys(dateGroups)
         .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
         .map(dateKey => {
@@ -194,10 +264,7 @@ export default function BookingsPage() {
             const subGroups: { [key: string]: GroupedBooking } = {};
 
             rawBookings.forEach(b => {
-                // Key สำหรับรวมกลุ่ม: ชื่อลูกค้า + เบอร์ + สนาม + สถานะ
-                // (ถ้าคนเดิม จองสนามเดิม วันเดียวกัน สถานะเดียวกัน -> รวม)
                 const groupKey = `${b.customerName}-${b.phoneNumber}-${b.court.id}-${b.status}`;
-
                 if (!subGroups[groupKey]) {
                     subGroups[groupKey] = {
                         ...b,
@@ -209,14 +276,10 @@ export default function BookingsPage() {
                     subGroups[groupKey].ids.push(b.id);
                     subGroups[groupKey].totalPrice += b.price;
                     subGroups[groupKey].timeSlots.push(b.startTime);
-                    // ถ้าอันใหม่มีสลิป แต่อันเก่าไม่มี ให้อัปเดต (เผื่ออันใดอันหนึ่งมีสลิป)
-                    if (b.slipUrl && !subGroups[groupKey].slipUrl) {
-                        subGroups[groupKey].slipUrl = b.slipUrl;
-                    }
+                    if (b.slipUrl && !subGroups[groupKey].slipUrl) subGroups[groupKey].slipUrl = b.slipUrl;
                 }
             });
 
-            // คืนค่าเป็น Array ของกลุ่มที่จัดแล้ว
             return { 
                 date: dateKey, 
                 items: Object.values(subGroups).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) 
@@ -253,14 +316,14 @@ export default function BookingsPage() {
                                 <div className="text-slate-500 text-sm">{editingGroup.phoneNumber}</div>
                             </div>
                             <div className="text-right">
-                                <label className="text-xs font-bold text-slate-500 uppercase">ราคารวม</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase">ราคารวมใหม่</label>
+                                {/* คำนวณราคา Real-time ตามจำนวนช่องที่เลือก */}
                                 <div className="text-blue-600 font-extrabold text-xl">
-                                    {editingGroup.totalPrice.toLocaleString()}.-
+                                    {((courts.find(c => c.id === editForm.courtId)?.price || 0) * editForm.selectedTimes.length).toLocaleString()}.-
                                 </div>
                             </div>
                         </div>
 
-                        {/* ดูสลิป */}
                         {editingGroup.slipUrl && (
                             <div className="text-center bg-slate-50 p-2 rounded-lg border border-dashed border-slate-300">
                                 <label className="text-xs font-bold text-slate-500 mb-2 block">หลักฐานการโอน</label>
@@ -275,7 +338,7 @@ export default function BookingsPage() {
                         )}
 
                         <div>
-                            <label className="text-sm font-bold text-slate-700 mb-1 block">เปลี่ยนสถานะ (มีผลกับทั้งกลุ่ม)</label>
+                            <label className="text-sm font-bold text-slate-700 mb-1 block">เปลี่ยนสถานะ</label>
                             <select 
                                 value={editForm.status}
                                 onChange={e => setEditForm({...editForm, status: e.target.value})}
@@ -295,7 +358,7 @@ export default function BookingsPage() {
                                 <input 
                                     type="date" 
                                     value={editForm.date}
-                                    onChange={e => setEditForm({...editForm, date: e.target.value})}
+                                    onChange={e => setEditForm({...editForm, date: e.target.value})} // เปลี่ยนวันที่ -> เช็คว่างใหม่
                                     className="w-full border border-slate-300 rounded-lg p-2 text-slate-700"
                                 />
                             </div>
@@ -303,7 +366,7 @@ export default function BookingsPage() {
                                 <label className="text-sm font-bold text-slate-500 mb-1 block">สนาม</label>
                                 <select 
                                     value={editForm.courtId}
-                                    onChange={e => setEditForm({...editForm, courtId: parseInt(e.target.value)})}
+                                    onChange={e => setEditForm({...editForm, courtId: parseInt(e.target.value)})} // เปลี่ยนสนาม -> เช็คว่างใหม่
                                     className="w-full border border-slate-300 rounded-lg p-2 text-slate-700"
                                 >
                                     {courts.map(c => (
@@ -313,15 +376,36 @@ export default function BookingsPage() {
                             </div>
                         </div>
 
-                        {/* เวลา (แสดงผลเท่านั้น แก้ไขไม่ได้ในโหมดกลุ่ม เพื่อความปลอดภัย) */}
+                        {/* ✅ ตารางเลือกเวลาแบบแก้ไขได้ */}
                         <div>
-                            <label className="text-sm font-bold text-slate-500 mb-2 block">เวลาที่จอง (แก้ไขไม่ได้)</label>
-                            <div className="flex flex-wrap gap-2">
-                                {editForm.selectedTimes.map((slot, idx) => (
-                                    <span key={idx} className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">
-                                        {slot}
-                                    </span>
-                                ))}
+                            <label className="text-sm font-bold text-slate-500 mb-2 block flex justify-between">
+                                <span>เวลาที่จอง (แก้ไขได้)</span>
+                                <span className="text-xs font-normal text-slate-400">สีแดง = ไม่ว่าง</span>
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {timeSlots.map(slot => {
+                                    const occupied = isSlotOccupied(slot);
+                                    const selected = editForm.selectedTimes.includes(slot);
+
+                                    return (
+                                        <button
+                                            key={slot}
+                                            disabled={occupied}
+                                            onClick={() => toggleEditTimeSlot(slot)}
+                                            className={`
+                                                text-xs py-2 px-1 rounded-lg border font-bold transition-all
+                                                ${occupied 
+                                                    ? 'bg-red-50 text-red-300 border-red-100 cursor-not-allowed' 
+                                                    : selected 
+                                                        ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-105'
+                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+                                                }
+                                            `}
+                                        >
+                                            {slot} {occupied && '🔒'}
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </div>
                     </div>
@@ -338,7 +422,7 @@ export default function BookingsPage() {
             </div>
         )}
 
-        {/* Filter Bar */}
+        {/* Filter Bar & Table (เหมือนเดิม) */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 flex flex-col xl:flex-row justify-between items-center gap-4">
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
                 <h2 className="text-xl font-extrabold text-slate-800 whitespace-nowrap">📅 ประวัติการจอง</h2>
@@ -361,7 +445,6 @@ export default function BookingsPage() {
             </div>
         </div>
 
-        {/* Table */}
         {groupedBookings.length > 0 ? (
             groupedBookings.map((group) => (
                 <div key={group.date} className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
