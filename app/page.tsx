@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -9,14 +11,22 @@ export default function Home() {
       <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-md shadow-sm z-50 border-b border-slate-100 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 cursor-pointer group">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">ส</div>
+            {/* รูป logo.jpg */}
+            <Image 
+                src="/logo.jpg" 
+                alt="Logo" 
+                width={40} 
+                height={40} 
+                className="w-10 h-10 object-contain rounded-lg group-hover:scale-110 transition-transform" 
+            />
+            {/* ข้อความใกล้ๆโลโก้ */}
             <div className="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight">
               สันติภาพ<span className="text-blue-600">แบดมินตัน</span>
             </div>
           </Link>
           
           <div className="flex items-center gap-2 md:gap-4">
-            {/* เอาปุ่มจองคอร์ทออก เหลือแค่ประวัติการจอง */}
+            {/* ปุ่มประวัติการจอง */}
             <Link href="/history" className="flex items-center gap-2 text-slate-600 hover:text-blue-600 font-bold transition px-4 py-2 rounded-full hover:bg-slate-50 text-sm md:text-base border border-transparent hover:border-slate-100">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               <span>ประวัติการจอง</span>
