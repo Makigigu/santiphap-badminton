@@ -165,7 +165,7 @@ export default function HistoryPage() {
         
         {/* Search Box */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8 text-center">
-            <h2 className="text-lg font-bold text-slate-800 mb-2">🔎 ค้นหาประวัติการจองของคุณ</h2>
+            <h2 className="text-lg font-bold text-slate-800 mb-2">ค้นหาประวัติการจองของคุณ</h2>
             <p className="text-sm text-slate-500 mb-4">กรอกเบอร์โทรศัพท์ที่ใช้จอง เพื่อดูรายการย้อนหลัง</p>
             <form onSubmit={handleSearch} className="flex gap-2">
                 <input 
