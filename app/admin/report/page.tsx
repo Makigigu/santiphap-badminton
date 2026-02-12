@@ -164,7 +164,7 @@ export default function ReportPage() {
       {/* --- หน้ากระดาษ A4 --- */}
       <div className="mx-auto bg-white shadow-2xl print:shadow-none w-[210mm] print:w-full min-h-[297mm] print:min-h-0 p-[15mm] print:p-0">
          
-         {/* Header หัวกระดาษ (เปลี่ยนเป็นรูป logo.jpg) */}
+         {/* Header หัวกระดาษ */}
          <div className="flex justify-between items-start mb-8 border-b border-slate-200 pb-6">
             <div className="flex items-center gap-4">
                 <Image 
