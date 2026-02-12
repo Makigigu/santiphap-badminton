@@ -120,7 +120,7 @@ export default function Home() {
                         <p>สอบถามข้อมูล หรือแจ้งปัญหา</p>
                         <p>@SantiphapBad</p>
                     </div>
-                    <a href="https://line.me/" target="_blank" rel="noreferrer" className="w-full py-3.5 rounded-xl bg-green-500 text-white font-bold text-center shadow-md hover:bg-green-600 transition-colors">
+                    <a href="https://line.me/R/ti/p/@915avwsq" target="_blank" rel="noreferrer" className="w-full py-3.5 rounded-xl bg-green-500 text-white font-bold text-center shadow-md hover:bg-green-600 transition-colors">
                         แอดไลน์
                     </a>
                 </div>
