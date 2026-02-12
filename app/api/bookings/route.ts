@@ -1,29 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendLineNotification } from '@/lib/line'; // Import ฟังก์ชันส่งไลน์แบบใหม่
 
 export const dynamic = 'force-dynamic';
-
-// --- ฟังก์ชันสำหรับส่ง LINE Notify ---
-async function sendLineNotify(message: string) {
-  const token = process.env.LINE_NOTIFY_TOKEN;
-  if (!token) return;
-
-  try {
-    const formData = new URLSearchParams();
-    formData.append('message', message);
-    
-    await fetch('https://notify-api.line.me/api/notify', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formData,
-    });
-  } catch (error) {
-    console.error('Line Notify Error:', error);
-  }
-}
 
 // 1. GET: ดึงข้อมูลการจองทั้งหมด
 export async function GET() {
@@ -81,7 +60,7 @@ export async function POST(request: Request) {
         courtId: Number(courtId),
         date: new Date(date),
         startTime: startTime, 
-        status: { notIn: ['rejected', 'cancelled', 'REJECTED', 'CANCELLED'] } // แก้ไขเพิ่มสถานะให้ครอบคลุม
+        status: { notIn: ['rejected', 'cancelled', 'REJECTED', 'CANCELLED'] }
       }
     });
 
@@ -103,23 +82,103 @@ export async function POST(request: Request) {
       },
     });
 
-    // 3.4 ส่ง LINE Notify
+    // 3.4 ส่ง LINE Messaging API (แบบ Flex Message)
     const formattedDate = new Date(date).toLocaleDateString('th-TH', {
         year: 'numeric', month: 'long', day: 'numeric'
     });
-    
-    const msg = `
-📣 มีรายการจองใหม่! (รอชำระเงิน)
-👤 ลูกค้า: ${customerName}
-📞 เบอร์: ${phoneNumber}
-🏟️ สนาม: ${court.name}
-📅 วันที่: ${formattedDate}
-⏰ เวลา: ${startTime} น.
-💰 ยอดเงิน: ${price} บาท
-สถานะ: รอตรวจสอบ (Pending)
-`.trim();
 
-    sendLineNotify(msg);
+    // สร้างข้อมูล Flex Message
+    const flexMessage = {
+      "type": "bubble",
+      "hero": {
+        "type": "image",
+        "url": "https://img.freepik.com/free-vector/badminton-player-action-cartoon-graphic-vector_40876-2679.jpg", // หารูปสวยๆ มาใส่
+        "size": "full",
+        "aspectRatio": "20:13",
+        "aspectMode": "cover"
+      },
+      "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "text",
+            "text": "รายการจองใหม่! 🏸",
+            "weight": "bold",
+            "size": "xl",
+            "color": "#1DB446"
+          },
+          {
+            "type": "box",
+            "layout": "vertical",
+            "margin": "lg",
+            "spacing": "sm",
+            "contents": [
+              {
+                "type": "box",
+                "layout": "baseline",
+                "contents": [
+                  { "type": "text", "text": "ลูกค้า", "color": "#aaaaaa", "size": "sm", "flex": 2 },
+                  { "type": "text", "text": customerName, "wrap": true, "color": "#666666", "size": "sm", "flex": 5 }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "baseline",
+                "contents": [
+                  { "type": "text", "text": "เบอร์โทร", "color": "#aaaaaa", "size": "sm", "flex": 2 },
+                  { "type": "text", "text": phoneNumber, "wrap": true, "color": "#666666", "size": "sm", "flex": 5 }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "baseline",
+                "contents": [
+                  { "type": "text", "text": "สนาม", "color": "#aaaaaa", "size": "sm", "flex": 2 },
+                  { "type": "text", "text": court.name, "wrap": true, "color": "#666666", "size": "sm", "flex": 5 }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "baseline",
+                "contents": [
+                  { "type": "text", "text": "เวลา", "color": "#aaaaaa", "size": "sm", "flex": 2 },
+                  { "type": "text", "text": `${formattedDate} (${startTime} น.)`, "wrap": true, "color": "#666666", "size": "sm", "flex": 5 }
+                ]
+              },
+              {
+                "type": "box",
+                "layout": "baseline",
+                "contents": [
+                  { "type": "text", "text": "ยอดเงิน", "color": "#aaaaaa", "size": "sm", "flex": 2 },
+                  { "type": "text", "text": `${price} บาท`, "weight": "bold", "color": "#333333", "size": "sm", "flex": 5 }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "footer": {
+        "type": "box",
+        "layout": "vertical",
+        "spacing": "sm",
+        "contents": [
+          {
+            "type": "button",
+            "style": "primary",
+            "height": "sm",
+            "action": {
+              "type": "uri",
+              "label": "ตรวจสอบในระบบ",
+              "uri": "https://santiphap-badminton.vercel.app/admin" // ลิงก์ไปยังหน้า Admin ของคุณ
+            }
+          }
+        ]
+      }
+    };
+
+    // ส่งข้อความ (Fire and Forget)
+    sendLineNotification(`มีรายการจองใหม่จากคุณ ${customerName}`, flexMessage);
 
     return NextResponse.json(newBooking);
   } catch (error) {
@@ -128,18 +187,16 @@ export async function POST(request: Request) {
   }
 }
 
-// ✅ 4. DELETE: ลบรายการจอง (เพิ่มใหม่)
+// 4. DELETE: ลบรายการจอง
 export async function DELETE(request: Request) {
   try {
     const { id, mode } = await request.json();
 
     if (mode === 'ALL') {
-      // กรณีลบทั้งหมด (Delete All) - ระวัง! ข้อมูลหายหมด
       await prisma.booking.deleteMany({}); 
       return NextResponse.json({ message: 'Deleted all bookings' });
     } 
     else if (id) {
-      // กรณีลบทีละรายการ
       await prisma.booking.delete({
         where: { id: String(id) },
       });
