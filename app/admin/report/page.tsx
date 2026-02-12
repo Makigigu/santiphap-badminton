@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { format, getDaysInMonth, startOfMonth, addMonths, setMonth, setYear } from 'date-fns';
 import { th } from 'date-fns/locale';
+import Image from 'next/image'; // เพิ่ม Import Image
 
 type Booking = {
   id: string;
@@ -163,20 +164,24 @@ export default function ReportPage() {
       {/* --- หน้ากระดาษ A4 --- */}
       <div className="mx-auto bg-white shadow-2xl print:shadow-none w-[210mm] print:w-full min-h-[297mm] print:min-h-0 p-[15mm] print:p-0">
          
-         {/* Header หัวกระดาษ */}
-         <div className="flex justify-between items-start mb-8">
-            <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white text-2xl font-bold print:border print:border-slate-300">
-                    ส
-                </div>
+         {/* Header หัวกระดาษ (เปลี่ยนเป็นรูป logo.jpg) */}
+         <div className="flex justify-between items-start mb-8 border-b border-slate-200 pb-6">
+            <div className="flex items-center gap-4">
+                <Image 
+                    src="/logo.jpg" 
+                    alt="โลโก้สันติภาพ" 
+                    width={120} 
+                    height={120} 
+                    className="h-20 w-auto object-contain rounded-lg" // ปรับขนาดตามต้องการ
+                />
                 <div>
                     <h1 className="text-xl font-extrabold text-slate-800">สนามแบดมินตัน สันติภาพ</h1>
-                    <p className="text-xs text-slate-500">รายงานรายได้ประจำเดือน (Monthly Revenue Report)</p>
+                    <p className="text-xs text-slate-500 mt-1">รายงานรายได้ประจำเดือน (Monthly Revenue Report)</p>
                 </div>
             </div>
             <div className="text-right">
                 <div className="text-sm font-bold text-slate-600">ประจำเดือน</div>
-                <div className="text-lg font-extrabold text-blue-600">{format(currentDate, 'MMMM พ.ศ. yyyy', { locale: th })}</div>
+                <div className="text-lg font-extrabold text-blue-600 mt-1">{format(currentDate, 'MMMM พ.ศ. yyyy', { locale: th })}</div>
             </div>
          </div>
 
