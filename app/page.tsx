@@ -19,7 +19,7 @@ export default function Home() {
                 height={40} 
                 className="w-10 h-10 object-contain rounded-lg group-hover:scale-110 transition-transform" 
             />
-            {/* ข้อความใกล้ๆโลโก้ */}
+            {/* ข้อความโลโก้ */}
             <div className="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight">
               สันติภาพ<span className="text-blue-600">แบดมินตัน</span>
             </div>
@@ -102,10 +102,10 @@ export default function Home() {
                     </div>
                     <h3 className="text-xl font-bold mb-3 text-slate-800">จองผ่านโทรศัพท์</h3>
                     <div className="text-slate-500 text-sm leading-relaxed mb-6 flex-grow">
-                        <p className="font-semibold text-slate-700">061-639-7991</p>
+                        <p className="font-semibold text-slate-700">064-038-8696</p>
                         <p>11:00 - 22:00 น.</p>
                     </div>
-                    <a href="tel:0616397991" className="w-full py-3.5 rounded-xl bg-slate-100 text-slate-800 font-bold text-center hover:bg-slate-200 transition-colors">
+                    <a href="tel:0640388696" className="w-full py-3.5 rounded-xl bg-slate-100 text-slate-800 font-bold text-center hover:bg-slate-200 transition-colors">
                         กดเพื่อโทรออก
                     </a>
                 </div>
@@ -293,7 +293,7 @@ export default function Home() {
             <div className="flex justify-center gap-6 mb-8">
                 <a href="#" className="text-slate-400 hover:text-white transition">Facebook</a>
                 <a href="#" className="text-slate-400 hover:text-white transition">Line</a>
-                <a href="tel:0616397991" className="text-slate-400 hover:text-white transition">061-639-7991</a>
+                <a href="tel:0640388696" className="text-slate-400 hover:text-white transition">064-038-8696</a>
             </div>
 
             <div className="mb-4">
