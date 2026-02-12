@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import Image from 'next/image'; // เพิ่ม Import Image
+import Image from 'next/image';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -41,18 +41,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col md:flex-row print:block">
       
-      {/* --- 1. Mobile Header --- */}
+      {/* --- Mobile Header --- */}
       <div className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md print:hidden">
-         {/* แก้ไขส่วน Logo ในมือถือ */}
-         <div className="flex items-center">
+         {/* มีรูปและข้อความ */}
+         <div className="flex items-center gap-3">
             <Image 
                 src="/logo.jpg" 
                 alt="Logo" 
-                width={140} 
-                height={50} 
-                className="h-10 w-auto object-contain" 
-                priority
+                width={40} 
+                height={40} 
+                className="h-10 w-10 object-contain rounded-lg bg-white/10" // ใส่พื้นหลังจางๆ ให้โลโก้ดูเด่นขึ้น
             />
+            <div className="font-extrabold tracking-tight">
+               <div>สันติภาพ<span className="text-blue-400">BackOffice</span></div>
+            </div>
          </div>
          
          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-lg hover:bg-slate-800 transition">
@@ -64,32 +66,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
          </button>
       </div>
 
-      {/* --- 2. Sidebar Menu --- */}
+      {/* --- Sidebar Menu --- */}
       <aside className={`
         fixed inset-y-0 left-0 z-[60] w-64 bg-slate-900 text-white flex flex-col h-screen transition-transform duration-300 ease-in-out
         md:translate-x-0 md:static md:sticky md:top-0
         ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'} 
         print:hidden
       `}>
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-          {/* แก้ไขส่วน Logo ใน Sidebar PC */}
-          <div className="flex items-center">
-            <Image 
-                src="/logo.jpg" 
-                alt="Logo" 
-                width={180} 
-                height={60} 
-                className="h-12 w-auto object-contain" 
-                priority
-            />
-          </div>
-          
-          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white bg-slate-800/50 p-1 rounded-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
+        {/* แก้ไข: Sidebar Header ใส่รูป + ข้อความกลับมา */}
+        <div className="p-6 border-b border-slate-800">
+           <div className="flex items-center gap-3 mb-2">
+               <Image 
+                   src="/logo.jpg" 
+                   alt="Logo" 
+                   width={50} 
+                   height={50} 
+                   className="h-12 w-12 object-contain rounded-xl bg-white" // ใส่พื้นขาวให้โลโก้ชัดๆ
+               />
+               <div className="leading-tight">
+                   <div className="text-lg font-extrabold tracking-tight">
+                       สันติภาพ
+                   </div>
+                   <div className="text-blue-400 font-bold text-sm">
+                       BackOffice
+                   </div>
+               </div>
+           </div>
+           {/* เอา Subtitle กลับมา */}
+           <div className="text-xs text-slate-400 mt-2">ระบบจัดการสนามแบดมินตัน</div>
         </div>
-        
-        {/* เอาข้อความ sub-header ออกเพื่อให้โลโก้เด่นขึ้น */}
         
         <nav className="p-4 space-y-2 flex-1 overflow-y-auto mt-2">
           {menuItems.map((item) => {
