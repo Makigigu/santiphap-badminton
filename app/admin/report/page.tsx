@@ -243,8 +243,8 @@ export default function ReportPage() {
                      <span className="font-medium">{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                  </div>
                  <div className="flex justify-between mb-2 text-sm">
-                     <span className="text-slate-600">ภาษีมูลค่าเพิ่ม (VAT 7%):</span>
-                     <span className="font-medium">-</span> 
+                     <span className="text-slate-600"></span>
+                     <span className="font-medium"></span> 
                  </div>
                  <div className="border-t border-slate-300 mt-2 pt-2 flex justify-between font-bold text-base">
                      <span>รวมสุทธิ:</span>
