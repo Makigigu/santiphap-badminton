@@ -111,7 +111,7 @@ export default function ReportPage() {
       {/* --- ส่วนควบคุม (ซ่อนตอน Print) --- */}
       <div className="max-w-[210mm] mx-auto mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 print:hidden">
          
-         {/* ✅ ชุดควบคุมวันที่ (มีทั้งลูกศร และ Dropdown) */}
+         {/* ชุดควบคุมวันที่ (มีทั้งลูกศร และ Dropdown) */}
          <div className="flex items-center bg-white p-1.5 rounded-xl shadow-sm border border-slate-200">
             {/* ปุ่มย้อนหลัง */}
             <button onClick={() => changeMonth(-1)} className="w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition">
@@ -163,7 +163,7 @@ export default function ReportPage() {
       {/* --- หน้ากระดาษ A4 --- */}
       <div className="mx-auto bg-white shadow-2xl print:shadow-none w-[210mm] print:w-full min-h-[297mm] print:min-h-0 p-[15mm] print:p-0">
          
-         {/* 1. Header หัวกระดาษ */}
+         {/* Header หัวกระดาษ */}
          <div className="flex justify-between items-start mb-8">
             <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white text-2xl font-bold print:border print:border-slate-300">
@@ -180,7 +180,7 @@ export default function ReportPage() {
             </div>
          </div>
 
-         {/* 2. ตารางข้อมูล */}
+         {/* ตารางข้อมูล */}
          <div className="mb-8">
              <table className="w-full text-left border-collapse border border-slate-300 text-sm">
                  <thead>
@@ -231,7 +231,7 @@ export default function ReportPage() {
              </table>
          </div>
 
-         {/* 3. สรุปท้ายกระดาษ */}
+         {/* สรุปท้ายกระดาษ */}
          <div className="flex justify-end mb-16 break-inside-avoid">
              <div className="w-1/2">
                  <div className="flex justify-between mb-2 text-sm">

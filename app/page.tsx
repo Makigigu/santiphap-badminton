@@ -261,7 +261,7 @@ export default function Home() {
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent"></div>
                         <div className="absolute bottom-8 left-0 right-0 text-center px-6">
                             <span className="inline-block bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                                🛡️ Fair Play & Safety
+                                Fair Play & Safety
                             </span>
                         </div>
                     </div>
