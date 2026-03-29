@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,15 +19,12 @@ export default function LoginPage() {
     setError('');
 
     // --- จำลองการตรวจสอบ (Mock Auth) ---
-    // หมายเหตุ: การเช็ค password ฝั่ง client ไม่ปลอดภัย 100% (สำหรับการใช้งานจริงควรย้ายไปเช็คที่ API)
-    // แต่สำหรับโปรเจกต์นี้ ใช้แบบนี้ได้ครับ
     setTimeout(() => {
         if (username === 'admin' && password === '1234') {
-            // ✅ 1. ฝัง Cookie เพื่อบอก Middleware ว่า "ฉันล็อกอินแล้วนะ"
-            // (ตั้งเวลาหมดอายุ 1 วัน)
+            // ฝัง Cookie เพื่อบอก Middleware ว่า "ฉันล็อกอินแล้ว" (อายุ 1 วัน)
             document.cookie = "admin_token=true; path=/; max-age=86400";
             
-            // ✅ 2. ไปหน้า Admin
+            // ไปหน้า Admin
             router.push('/admin');
         } else {
             setError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
@@ -36,13 +34,8 @@ export default function LoginPage() {
   };
 
   return (
-    // ... (ส่วน UI ของคุณเหมือนเดิมเป๊ะ ไม่ต้องแก้ครับ) ...
     <div className="min-h-screen bg-slate-100 font-sans text-slate-900 flex items-center justify-center relative overflow-hidden">
-        {/* ... ใส่ Code UI เดิมของคุณตรงนี้ ... */}
-        {/* Background, Login Card, Form etc. */}
-        {/* ก๊อปปี้ UI เดิมมาวางได้เลยครับ เปลี่ยนแค่ฟังก์ชัน handleLogin ข้างบน */}
       
-      {/* (ขออนุญาตละ UI ไว้ฐานที่เข้าใจนะครับ เพราะ UI คุณดีอยู่แล้ว) */}
        <div 
         className="absolute inset-0 z-0 bg-cover bg-center blur-sm scale-105"
         style={{
@@ -55,7 +48,14 @@ export default function LoginPage() {
         
         <div className="text-center mb-8">
             <Link href="/" className="inline-flex items-center gap-2 mb-4 group cursor-pointer">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">ส</div>
+                {/* ✅ 2. เปลี่ยนตรงนี้เป็น Image logo.jpg */}
+                <Image 
+                    src="/logo.jpg" 
+                    alt="Logo" 
+                    width={40} 
+                    height={40} 
+                    className="w-10 h-10 object-contain rounded-xl shadow-lg group-hover:scale-110 transition-transform" 
+                />
                 <div className="text-2xl font-extrabold text-slate-800 tracking-tight">
                   สันติภาพ<span className="text-blue-600">แบดมินตัน</span>
                 </div>
