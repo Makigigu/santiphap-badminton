@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       "type": "bubble",
       "hero": {
         "type": "image",
-        "url": "https://img.freepik.com/free-vector/badminton-player-action-cartoon-graphic-vector_40876-2679.jpg", // หารูปสวยๆ มาใส่
+        "url": "https://i.pinimg.com/736x/16/c2/4f/16c24ff98518a954ee4a7058e9de91c4.jpg", // หารูปสวยๆ มาใส่
         "size": "full",
         "aspectRatio": "20:13",
         "aspectMode": "cover"
