@@ -118,11 +118,10 @@ export default function BookingPage() {
                                     parseInt(b.startTime.split(':')[0]) === slotStartHour;
 
                 return bookingDate === selectedDate &&      
-                       b.courtId === court.id &&            
-                       isTimeMatch &&                       
-                       b.status !== 'rejected' && b.status !== 'cancelled';
-                       b.status.toUpperCase() !== 'REJECTED' && 
-                       b.status.toUpperCase() !== 'CANCELLED';          
+                    b.courtId === court.id &&            
+                    isTimeMatch &&                       
+                    b.status.toUpperCase() !== 'REJECTED' && 
+                    b.status.toUpperCase() !== 'CANCELLED';
             });
 
             if (bookingFound) {
