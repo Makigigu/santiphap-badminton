@@ -67,7 +67,8 @@ export default function BookingsPage() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/bookings', { cache: 'no-store' });
+      // เติม ?t=${Date.now()} เข้าไป
+      const res = await fetch(`/api/bookings?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) setBookings(await res.json());
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
@@ -89,6 +90,9 @@ export default function BookingsPage() {
                   body: JSON.stringify({ id }),
               })
           ));
+          // ลบข้อมูลออกจากหน้าจอทันทีโดยไม่ต้องรอรีเฟรชใหม่
+          setBookings(prev => prev.filter(b => !ids.includes(b.id)));
+          
           alert('ลบรายการเรียบร้อย');
           setEditingGroup(null);
           fetchData();
@@ -217,6 +221,12 @@ export default function BookingsPage() {
           }
 
           await Promise.all(promises);
+          setBookings(prev => prev.map(b => 
+              originalIds.includes(b.id) 
+                ? { ...b, status: editForm.status } 
+                : b
+            ));
+
           alert("บันทึกข้อมูลเรียบร้อย"); 
           setEditingGroup(null); 
           fetchData();
