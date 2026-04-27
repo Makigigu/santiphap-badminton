@@ -62,7 +62,7 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // ✅ ฟังก์ชันอนุมัติแบบกลุ่ม (ทีเดียวหลาย ID)
+  // ฟังก์ชันอนุมัติแบบกลุ่ม (ทีเดียวหลาย ID)
   const updateGroupStatus = async (ids: string[], status: string) => {
     const action = status === 'APPROVED' ? 'อนุมัติ' : 'ปฏิเสธ';
     if(!confirm(`ยืนยันการ "${action}" ยอดรวมนี้ทั้งหมด?`)) return;

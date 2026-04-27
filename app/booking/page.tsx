@@ -385,7 +385,7 @@ export default function BookingPage() {
             </div>
         </div>
 
-        {/* ✅ Sticky Bottom Bar (แถบสรุปด้านล่าง ไม่บังจอ) */}
+        {/* Sticky Bottom Bar (แถบสรุปด้านล่าง ไม่บังจอ) */}
         {selectedSlots.length > 0 && !showConfirmModal && (
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4 z-40 animate-slide-up">
                <div className="max-w-2xl mx-auto flex justify-between items-center">
@@ -408,7 +408,7 @@ export default function BookingPage() {
             </div>
         )}
 
-        {/* ✅ Modal ยืนยันการจอง (แสดงเมื่อกดปุ่มดำเนินการต่อเท่านั้น) */}
+        {/* Modal ยืนยันการจอง (แสดงเมื่อกดปุ่มดำเนินการต่อเท่านั้น) */}
         {showConfirmModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
                 <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full relative max-h-[90vh] overflow-y-auto animate-scale-in">

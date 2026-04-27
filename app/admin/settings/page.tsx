@@ -48,7 +48,7 @@ export default function SettingsPage() {
     }
   };
 
-  // ✅ ฟังก์ชันเพิ่มสนาม (มี Confirm)
+  // ฟังก์ชันเพิ่มสนาม (มี Confirm)
   const createNewCourt = async () => {
     if (!confirm('➕ ยืนยันการ "เพิ่มสนามใหม่" ใช่หรือไม่?')) return;
 
@@ -75,7 +75,7 @@ export default function SettingsPage() {
     }
   };
 
-  // ✅ ฟังก์ชันลบสนาม (เพิ่มใหม่)
+  // ฟังก์ชันลบสนาม
   const deleteCourt = async (id: number, name: string) => {
       const confirmMsg = `⚠️ คำเตือน: คุณต้องการลบ "${name}" ใช่หรือไม่?\n\nหากลบแล้ว ประวัติการจองของสนามนี้อาจหายไปหรือแสดงผลผิดพลาดได้`;
       if (!confirm(confirmMsg)) return;

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Mitr } from "next/font/google"; // 1. นำเข้าฟอนต์ Mitr
+import { Mitr } from "next/font/google"; // นำเข้าฟอนต์ Mitr
 import "./globals.css";
 
-// 2. ตั้งค่าฟอนต์ (เลือกความหนาที่ต้องการ)
+// ตั้งค่าฟอนต์ (เลือกความหนาที่ต้องการ)
 const mitr = Mitr({
   weight: ['200', '300', '400', '500', '600', '700'], // โหลดมาหลายๆ ขนาด
   subsets: ['thai', 'latin'], // รองรับภาษาไทยและอังกฤษ
@@ -22,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th">
-      {/* 3. เรียกใช้ฟอนต์ที่ body */}
+      {/* เรียกใช้ฟอนต์ที่ body */}
       <body className={`${mitr.className} antialiased bg-gray-50 text-slate-900`}>
         {children}
       </body>

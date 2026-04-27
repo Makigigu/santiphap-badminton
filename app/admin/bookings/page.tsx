@@ -122,7 +122,7 @@ export default function BookingsPage() {
       });
   };
 
-  // ✅ เช็คว่าเวลาว่างไหม (ไม่นับตัวเอง)
+  // เช็คว่าเวลาว่างไหม (ไม่นับตัวเอง)
   const isSlotOccupied = (slot: string) => {
       if (!editingGroup) return false;
       return bookings.some(b => 
@@ -146,7 +146,7 @@ export default function BookingsPage() {
       });
   };
 
-  // ✅ ระบบบันทึกแบบอัจฉริยะ (Sync Changes)
+  // ระบบบันทึกแบบอัจฉริยะ (Sync Changes)
   const handleSaveEdit = async () => {
       if (!editingGroup) return;
       if (editForm.selectedTimes.length === 0) return alert("กรุณาเลือกเวลาอย่างน้อย 1 ช่อง หรือกดลบทั้งกลุ่ม");
@@ -160,7 +160,7 @@ export default function BookingsPage() {
 
           const promises = [];
 
-          // 1. อัปเดตรายการเดิมที่มีอยู่ (Update Existing)
+          // อัปเดตรายการเดิมที่มีอยู่ (Update Existing)
           // จับคู่ ID เดิม กับ เวลาใหม่ (ตัวต่อตัว)
           const commonCount = Math.min(originalIds.length, newTimes.length);
           for (let i = 0; i < commonCount; i++) {
@@ -181,7 +181,7 @@ export default function BookingsPage() {
               );
           }
 
-          // 2. ถ้าเลือกเวลาเพิ่ม -> สร้างรายการใหม่ (Create New)
+          // ถ้าเลือกเวลาเพิ่ม -> สร้างรายการใหม่ (Create New)
           if (newTimes.length > originalIds.length) {
              for (let i = commonCount; i < newTimes.length; i++) {
                  promises.push(
@@ -203,7 +203,7 @@ export default function BookingsPage() {
              }
           }
 
-          // 3. ถ้าเลือกเวลาน้อยลง -> ลบรายการส่วนเกินทิ้ง (Delete Excess)
+          // ถ้าเลือกเวลาน้อยลง -> ลบรายการส่วนเกินทิ้ง (Delete Excess)
           if (originalIds.length > newTimes.length) {
               for (let i = commonCount; i < originalIds.length; i++) {
                   promises.push(
@@ -376,7 +376,7 @@ export default function BookingsPage() {
                             </div>
                         </div>
 
-                        {/* ✅ ตารางเลือกเวลาแบบแก้ไขได้ */}
+                        {/* ตารางเลือกเวลาแบบแก้ไขได้ */}
                         <div>
                             <label className="text-sm font-bold text-slate-500 mb-2 block flex justify-between">
                                 <span>เวลาที่จอง (แก้ไขได้)</span>

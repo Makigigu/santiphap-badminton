@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// 1. ฟังก์ชันย่อรูป (สำคัญมาก! ช่วยให้ไฟล์เล็กกว่า 4.5MB ไม่ Error 500 แน่นอน)
+// ฟังก์ชันย่อรูป (สำคัญมาก! ช่วยให้ไฟล์เล็กกว่า 4.5MB ไม่ Error 500 แน่นอน)
 const resizeImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -67,7 +67,7 @@ function PaymentContent() {
       }
       
       try {
-        // ✅ เรียกใช้ฟังก์ชันย่อรูปก่อนแสดงผล
+        // เรียกใช้ฟังก์ชันย่อรูปก่อนแสดงผล
         const resized = await resizeImage(file);
         setSlipImage(resized);
       } catch (error) {
@@ -92,7 +92,7 @@ function PaymentContent() {
     setIsUploading(true);
 
     try {
-      // ✅ ใช้ PATCH เพื่ออัปเดตสลิปใส่ Booking เดิม (แก้ปัญหาจองซ้ำซ้อน)
+      // ใช้ PATCH เพื่ออัปเดตสลิปใส่ Booking เดิม (แก้ปัญหาจองซ้ำซ้อน)
       const updatePromises = bookingData.bookingIds.map((id: number) => 
         fetch('/api/bookings', {
           method: 'PATCH', // สำคัญ! ต้องเป็น PATCH
@@ -125,7 +125,7 @@ function PaymentContent() {
       <nav className="bg-white shadow-sm sticky top-0 z-20 border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           
-          {/* ✅ ปุ่มกลับหน้าหลัก (แก้ไขแล้ว) */}
+          {/* ปุ่มกลับหน้าหลัก (แก้ไขแล้ว) */}
           <Link href="/" className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-800 transition">
               <span>←</span> กลับหน้าหลัก
           </Link>

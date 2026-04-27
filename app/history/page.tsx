@@ -66,7 +66,7 @@ export default function HistoryPage() {
 
   // --- Logic Grouping (แบบใหม่: แยกสนาม) ---
   const groupedBookings = useMemo(() => {
-    // 1. กรองตาม Tab
+    // กรองตาม Tab
     const tabFiltered = allBookings.filter(item => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -84,13 +84,13 @@ export default function HistoryPage() {
         return true;
     });
 
-    // 2. จัดกลุ่ม (Group By Date + Status + Court)
+    // จัดกลุ่ม (Group By Date + Status + Court)
     const groups: { [key: string]: GroupedHistory } = {};
 
     tabFiltered.forEach(b => {
         const dateStr = format(new Date(b.date), 'yyyy-MM-dd');
         
-        // ✅ Key ใหม่: แยกตาม "วันที่" + "สถานะ" + "สนาม"
+        // Key ใหม่: แยกตาม "วันที่" + "สถานะ" + "สนาม"
         // ผลลัพธ์: จองคนละสนาม จะแยกคนละการ์ด / จองสนามเดิมหลายชั่วโมง จะรวมการ์ดเดียว
         const key = `${dateStr}-${b.status}-${b.court.name}`;
 

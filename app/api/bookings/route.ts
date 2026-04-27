@@ -21,8 +21,11 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const { id, status, date, startTime, courtId, slipUrl } = await request.json();
+    // ตรวจสอบว่ามี ID หรือไม่ (จำเป็นสำหรับการอัปเดต)
+    if (!id) {
+      return NextResponse.json({ error: 'Missing Booking ID' }, { status: 400 });
+    }    
     const dataToUpdate: any = {};
-    
     if (status) dataToUpdate.status = status;
     if (date) dataToUpdate.date = new Date(date);
     if (startTime) dataToUpdate.startTime = startTime;
@@ -33,8 +36,10 @@ export async function PATCH(request: Request) {
       where: { id: id },
       data: dataToUpdate,
     });
+
     return NextResponse.json(updatedBooking);
   } catch (error) {
+    console.error("Update Error:", error);
     return NextResponse.json({ error: 'Update Failed' }, { status: 500 });
   }
 }

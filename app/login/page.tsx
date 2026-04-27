@@ -48,7 +48,7 @@ export default function LoginPage() {
         
         <div className="text-center mb-8">
             <Link href="/" className="inline-flex items-center gap-2 mb-4 group cursor-pointer">
-                {/* ✅ 2. เปลี่ยนตรงนี้เป็น Image logo.jpg */}
+                {/* Image logo.jpg */}
                 <Image 
                     src="/logo.jpg" 
                     alt="Logo" 
