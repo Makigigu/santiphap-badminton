@@ -68,8 +68,8 @@ export default function BookingPage() {
   async function fetchLatestData() {
     try {
       const [courtsRes, bookingsRes] = await Promise.all([
-         fetch('/api/courts', { cache: 'no-store' }),
-         fetch('/api/bookings', { cache: 'no-store' })
+         fetch(`/api/courts?t=${Date.now()}`, { cache: 'no-store' }),
+         fetch(`/api/bookings?t=${Date.now()}`, { cache: 'no-store' })
       ]);
       
       if (courtsRes.ok) setCourts(await courtsRes.json());
@@ -120,7 +120,9 @@ export default function BookingPage() {
                 return bookingDate === selectedDate &&      
                        b.courtId === court.id &&            
                        isTimeMatch &&                       
-                       b.status !== 'rejected' && b.status !== 'cancelled';             
+                       b.status !== 'rejected' && b.status !== 'cancelled';
+                       b.status.toUpperCase() !== 'REJECTED' && 
+                       b.status.toUpperCase() !== 'CANCELLED';          
             });
 
             if (bookingFound) {
