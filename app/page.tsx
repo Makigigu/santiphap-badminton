@@ -41,10 +41,7 @@ export default function Home() {
         <div 
             className="absolute inset-0 bg-cover bg-center animate-kenburns"
             style={{
-                backgroundImage: "url('https://i.pinimg.com/736x/ec/b2/61/ecb2618397452d51ab844129925d00d9.jpg')",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat"
+                backgroundImage: "url('https://scontent.fcnx1-1.fna.fbcdn.net/v/t39.30808-6/482021293_939228958388972_2561704435003781880_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=7b2446&_nc_eui2=AeFwwrjaA9O-29IsCKx3IFkrfd0hrXx5eAx93SGtfHl4DF5-bCfvpetDTsV7SxYhx-PL6msdm5jhzT6V-xSR2h5u&_nc_ohc=MpuH54Q6l4wQ7kNvwFFRXlN&_nc_oc=AdrgwEgD68PF3nlMM0nCTAuGfNPlwLdQqMBBrxdgkXHY3y7uempxT6YKggI3bbZjW0Q&_nc_zt=23&_nc_ht=scontent.fcnx1-1.fna&_nc_gid=PCRekwV5XeqIxkAQJ1ttvg&_nc_ss=7b2a8&oh=00_Af33rt9vv28pP2x0b8pCE0_I7ul9AU3GDwDGTbmqw4LuGw&oe=69F5DA00')",
             }}
         ></div>
         {/* Overlay */}
