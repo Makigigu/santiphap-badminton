@@ -48,8 +48,8 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-slate-900/30"></div>
         
         {/* Content */}
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto mt-10">
-            <span className="inline-block py-1 px-10 rounded-full bg-blue-500/20 text-blue-100 border border-blue-400/30 text-sm font-bold mb-4 backdrop-blur-sm">
+        <div className="relative z-10 text-center px-7 max-w-10xl mx-auto mt-10">
+            <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 text-blue-100 border border-blue-400/30 text-sm font-bold mb-4 backdrop-blur-sm">
                 สนามแบดมินตันมาตรฐาน จังหวัด น่าน
             </span>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg leading-tight">
