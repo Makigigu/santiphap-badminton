@@ -116,8 +116,8 @@ export default function HistoryPage() {
         }
     });
 
-    // เรียงลำดับตามวันที่ (ใหม่สุดขึ้นก่อน)
-    return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // เรียงลำดับตาม "เวลาที่กดจองเข้ามา" (ใหม่สุดขึ้นก่อน)
+    return Object.values(groups).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   }, [allBookings, filter]);
 
