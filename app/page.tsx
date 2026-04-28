@@ -42,6 +42,9 @@ export default function Home() {
             className="absolute inset-0 bg-cover bg-center animate-kenburns"
             style={{
                 backgroundImage: "url('https://i.pinimg.com/736x/ec/b2/61/ecb2618397452d51ab844129925d00d9.jpg')",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat"
             }}
         ></div>
         {/* Overlay */}
