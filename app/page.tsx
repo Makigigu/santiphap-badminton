@@ -49,7 +49,7 @@ export default function Home() {
         
         {/* Content */}
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto mt-10">
-            <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 text-blue-100 border border-blue-400/30 text-lg font-bold mb-4 backdrop-blur-sm">
+            <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 text-blue-100 border border-blue-400/30 text-10xl font-bold mb-4 backdrop-blur-sm">
                 สนามแบดมินตันมาตรฐาน จังหวัด น่าน
             </span>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg leading-tight">
