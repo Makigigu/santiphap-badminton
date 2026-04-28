@@ -48,6 +48,11 @@ function PaymentContent() {
   const [isUploading, setIsUploading] = useState(false);
   const [bookingData, setBookingData] = useState<any>(null);
 
+  // ตัวแปรสำหรับจัดการเวลา 30 นาที (1800 วินาที)
+  const [timeLeft, setTimeLeft] = useState<number>(1800);
+  const [isExpired, setIsExpired] = useState(false);
+
+  // 1. โหลดข้อมูลการจอง
   useEffect(() => {
     const data = localStorage.getItem('tempBooking');
     if (data) {
@@ -57,6 +62,86 @@ function PaymentContent() {
         router.push('/');
     }
   }, [router]);
+
+  // 2. จัดการเวลานับถอยหลังเมื่อโหลดหน้าเว็บ
+  useEffect(() => {
+    let expireTime = localStorage.getItem('paymentExpireTime');
+    
+    if (!expireTime) {
+      // ถ้ายังไม่มีเวลาหมดอายุ ให้สร้างใหม่ (ปัจจุบัน + 30 นาที)
+      const newExpireTime = Date.now() + 30 * 60 * 1000;
+      localStorage.setItem('paymentExpireTime', newExpireTime.toString());
+      expireTime = newExpireTime.toString();
+    }
+
+    // คำนวณเวลาที่เหลือ
+    const remainingTime = Math.floor((parseInt(expireTime) - Date.now()) / 1000);
+    
+    if (remainingTime <= 0) {
+      setTimeLeft(0);
+      handleAutoCancel(); // ถ้าหมดเวลาตั้งแต่เปิดหน้ามา ให้ยกเลิกเลย
+    } else {
+      setTimeLeft(remainingTime);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 3. ฟังก์ชันนับถอยหลังทุกๆ 1 วินาที
+  useEffect(() => {
+    if (timeLeft <= 0 || isExpired) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleAutoCancel(); // เมื่อเวลาเหลือ 0 ให้เรียกฟังก์ชันยกเลิก
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, isExpired]);
+
+  // 4. ฟังก์ชันยกเลิกอัตโนมัติ
+  const handleAutoCancel = async () => {
+    if (isExpired) return;
+    setIsExpired(true);
+    
+    const tempBookingStr = localStorage.getItem('tempBooking');
+    if (tempBookingStr) {
+      const tempBooking = JSON.parse(tempBookingStr);
+      try {
+        // ยิง API ไปยกเลิกทุกคิวที่จองไว้
+        if (tempBooking.bookingIds) {
+          await Promise.all(tempBooking.bookingIds.map((id: number) => 
+            fetch('/api/bookings', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: id, status: 'CANCELLED' })
+            })
+          ));
+        }
+      } catch (error) {
+        console.error("Auto cancel error:", error);
+      }
+    }
+
+    // ล้างข้อมูลทิ้งและเด้งกลับหน้าแรก
+    localStorage.removeItem('tempBooking');
+    localStorage.removeItem('paymentExpireTime');
+    alert("หมดเวลาชำระเงิน รายการจองของคุณถูกยกเลิกโดยอัตโนมัติ เนื่องจากไม่ได้รับการยืนยันภายใน 30 นาที");
+    router.push('/'); 
+  };
+
+  // แปลงวินาทีเป็นรูปแบบ นาที:วินาที (เช่น 29:59)
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,21 +170,21 @@ function PaymentContent() {
 
     if (!bookingData || !bookingData.bookingIds) {
       alert("ไม่พบข้อมูลการจอง กรุณาทำรายการใหม่");
-      router.push('/booking');
+      router.push('/bookings');
       return;
     }
 
     setIsUploading(true);
 
     try {
-      // ใช้ PATCH เพื่ออัปเดตสลิปใส่ Booking เดิม (แก้ปัญหาจองซ้ำซ้อน)
+      // ใช้ PATCH เพื่ออัปเดตสลิปใส่ Booking เดิม
       const updatePromises = bookingData.bookingIds.map((id: number) => 
         fetch('/api/bookings', {
-          method: 'PATCH', // สำคัญ! ต้องเป็น PATCH
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: id,
-            slipUrl: slipImage, // รูปที่ย่อแล้ว (Base64 string)
+            slipUrl: slipImage, 
             status: 'PAID_VERIFY' // เปลี่ยนสถานะเป็น "รอตรวจสอบ"
           })
         })
@@ -107,8 +192,9 @@ function PaymentContent() {
 
       await Promise.all(updatePromises);
 
-      // ไปหน้า Success (แทน History)
+      // ไปหน้า Success และล้างเวลาทิ้ง
       localStorage.removeItem('tempBooking'); 
+      localStorage.removeItem('paymentExpireTime'); // ล้างเวลาทิ้ง
       router.push('/success'); 
 
     } catch (error) {
@@ -125,7 +211,6 @@ function PaymentContent() {
       <nav className="bg-white shadow-sm sticky top-0 z-20 border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           
-          {/* ปุ่มกลับหน้าหลัก (แก้ไขแล้ว) */}
           <Link href="/" className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-800 transition">
               <span>←</span> กลับหน้าหลัก
           </Link>
@@ -136,6 +221,19 @@ function PaymentContent() {
 
       <main className="max-w-2xl mx-auto px-4 py-8">
         
+        {/* กล่องแสดงเวลานับถอยหลัง */}
+        <div className="bg-red-50 border border-red-200 rounded-3xl p-5 mb-6 text-center shadow-sm">
+            <p className="text-sm font-bold text-red-500 mb-1">
+               ⚠️ กรุณาชำระเงินและแนบสลิปภายในเวลา
+            </p>
+            <div className="text-4xl font-extrabold text-red-600 animate-pulse my-2 tracking-widest">
+               {formatTime(timeLeft)}
+            </div>
+            <p className="text-xs text-red-400 mt-1">
+               หากเกินเวลาที่กำหนด รายการจองจะถูกยกเลิกอัตโนมัติ
+            </p>
+        </div>
+
         <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden mb-6">
             <div className="bg-blue-600 p-6 text-center text-white">
                 <p className="text-blue-100 text-sm mb-1">ยอดชำระทั้งหมด ({count} รายการ)</p>
@@ -145,7 +243,7 @@ function PaymentContent() {
             <div className="p-8">
                 <div className="flex flex-col items-center justify-center mb-8">
                     <div className="w-64 h-64 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center mb-4 relative overflow-hidden group">
-                        {/* ใส่รูป QR Code ของคุณตรงนี้ */}
+                        {/* รูป QR Code ของคุณ */}
                         <img 
                             src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" 
                             alt="Payment QR Code" 
@@ -199,12 +297,12 @@ function PaymentContent() {
                 <div className="mt-8">
                     <button 
                         onClick={handleSubmit}
-                        disabled={isUploading}
+                        disabled={isUploading || isExpired}
                         className={`w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-all 
-                            ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'}
+                            ${(isUploading || isExpired) ? 'bg-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'}
                         `}
                     >
-                        {isUploading ? 'กำลังบันทึกข้อมูล...' : 'แจ้งชำระเงิน'}
+                        {isUploading ? 'กำลังบันทึกข้อมูล...' : isExpired ? 'หมดเวลาชำระเงิน' : 'แจ้งชำระเงิน'}
                     </button>
                 </div>
             </div>
