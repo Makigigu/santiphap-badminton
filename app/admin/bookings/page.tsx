@@ -242,7 +242,7 @@ export default function BookingsPage() {
       const s = status.toUpperCase();
       switch (s) {
           case 'PAID_VERIFY': return <span className="bg-yellow-100 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-xs font-bold animate-pulse">⏳ รอตรวจสอบ</span>;
-          case 'PENDING': return <span className="bg-red-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">💰 รอชำระเงิน</span>;
+          case 'PENDING': return <span className="bg-red-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">รอชำระเงิน</span>;
           case 'APPROVED': return <span className="bg-green-100 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-bold">✅ อนุมัติ</span>;
           case 'REJECTED': return <span className="bg-slate-100 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold">❌ ปฏิเสธ</span>;
           default: return <span className="bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full text-xs font-bold">{status}</span>;
