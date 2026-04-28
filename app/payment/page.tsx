@@ -224,7 +224,7 @@ function PaymentContent() {
         {/* กล่องแสดงเวลานับถอยหลัง */}
         <div className="bg-red-50 border border-red-200 rounded-3xl p-5 mb-6 text-center shadow-sm">
             <p className="text-sm font-bold text-red-500 mb-1">
-               ⚠️ กรุณาชำระเงินและแนบสลิปภายในเวลา
+               กรุณาชำระเงินและแนบสลิปภายในเวลา
             </p>
             <div className="text-4xl font-extrabold text-red-600 animate-pulse my-2 tracking-widest">
                {formatTime(timeLeft)}
