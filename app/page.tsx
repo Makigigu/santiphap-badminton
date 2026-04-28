@@ -41,7 +41,7 @@ export default function Home() {
         <div 
             className="absolute inset-0 bg-cover bg-center animate-kenburns"
             style={{
-                backgroundImage: "url('https://i.pinimg.com/1200x/c5/8c/a0/c58ca0e5e2c7363a4ef8ab2ac7cbfeef.jpg')",
+                backgroundImage: "url('https://i.pinimg.com/736x/ec/b2/61/ecb2618397452d51ab844129925d00d9.jpg')",
             }}
         ></div>
         {/* Overlay */}
