@@ -55,7 +55,7 @@ export default function Home() {
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg leading-tight">
                 จองสนามง่าย <br className="hidden md:block" />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
-                    สแมชได้เต็มที่
+                    ตีสแมชได้เต็มที่
                 </span>
             </h1>
             <p className="text-lg md:text-xl text-slate-200 mb-8 font-light max-w-2xl mx-auto drop-shadow-md">

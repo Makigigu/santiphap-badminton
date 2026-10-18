@@ -181,59 +181,53 @@ export default function BookingPage() {
       if (!customerName.trim()) { alert("กรุณากรอกชื่อลูกค้า"); return; }
       if (!phoneNumber.trim()) { alert("กรุณากรอกเบอร์โทรศัพท์"); return; }
       if (phoneNumber.length < 9) { alert("กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง"); return; }
+      if (selectedSlots.length === 0) { alert("กรุณาเลือกช่วงเวลาที่ต้องการจอง"); return; }
 
       setIsProcessing(true);
 
       try {
-        const bookingPromises = selectedSlots.map(slot => {
-            const timeString = timeSlots[slot.timeIndex];
-            const court = courts.find(c => c.id === slot.courtId);
-            const price = court ? court.price : 0;
-
-            return fetch('/api/bookings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customerName,
-                    phoneNumber,
-                    date: selectedDate,
-                    startTime: timeString,
-                    price: price,
-                    courtId: slot.courtId
-                })
-            });
+        // จัดเรียงช่วงเวลาตามสนามและลำดับเวลา
+        const sortedSlots = [...selectedSlots].sort((a, b) => {
+            if (a.courtId !== b.courtId) return a.courtId - b.courtId;
+            return a.timeIndex - b.timeIndex;
         });
 
-        const responses = await Promise.all(bookingPromises);
-        
-        let hasError = false;
-        let isConflict = false;
-        const successfulBookingIds: number[] = [];
+        const slotsPayload = sortedSlots.map(slot => {
+            const court = courts.find(c => c.id === slot.courtId);
+            return {
+                courtId: slot.courtId,
+                startTime: timeSlots[slot.timeIndex],
+                price: court ? court.price : 0
+            };
+        });
 
-        for (const res of responses) {
-            if (!res.ok) {
-                hasError = true;
-                if (res.status === 409) isConflict = true;
+        const res = await fetch('/api/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customerName,
+                phoneNumber,
+                date: selectedDate,
+                slots: slotsPayload
+            })
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            if (res.status === 409) {
+                alert(`⚠️ เสียใจด้วย! ${errData.error || 'มีบางช่วงเวลาถูกจองตัดหน้าไปแล้ว'}`);
             } else {
-                const data = await res.json();
-                if (data.id) {
-                    successfulBookingIds.push(data.id);
-                }
+                alert(errData.error || "เกิดข้อผิดพลาดในการจอง กรุณาลองใหม่อีกครั้ง");
             }
+            await fetchLatestData(); 
+            setSelectedSlots([]);
+            setShowConfirmModal(false);
+            setIsProcessing(false);
+            return;
         }
 
-        if (hasError) {
-             if (isConflict) {
-                 alert("⚠️ เสียใจด้วย! มีบางช่วงเวลาถูกจองตัดหน้าไปแล้ว");
-             } else {
-                 alert("เกิดข้อผิดพลาดในการจอง กรุณาลองใหม่อีกครั้ง");
-             }
-             await fetchLatestData(); 
-             setSelectedSlots([]);
-             setShowConfirmModal(false);
-             setIsProcessing(false);
-             return;
-        }
+        const data = await res.json();
+        const successfulBookingIds: string[] = data.ids || (data.bookings ? data.bookings.map((b: any) => b.id) : [data.id]);
 
         const bookingDetails = {
             id: `BK-GROUP-${Date.now()}`, 
@@ -242,11 +236,11 @@ export default function BookingPage() {
             phoneNumber,
             date: displayDateThai,
             price: totalPrice,
-            courtName: selectedSlots.map(s => {
+            courtName: sortedSlots.map(s => {
                const c = courts.find(court => court.id === s.courtId);
                return c ? c.name.replace('COURT', 'สนาม') : '';
             }).join(', '), 
-            time: selectedSlots.map(s => timeSlots[s.timeIndex] + " น.").join(', '),
+            time: sortedSlots.map(s => timeSlots[s.timeIndex] + " น.").join(', '),
             status: 'pending',
         };
 
