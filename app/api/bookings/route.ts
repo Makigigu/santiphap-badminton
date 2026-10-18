@@ -4,15 +4,55 @@ import { sendLineNotification } from '@/lib/line'; // Import ฟังก์ช�
 
 export const dynamic = 'force-dynamic';
 
-// 1. GET: ดึงข้อมูลการจองทั้งหมด
-export async function GET() {
+// 1. GET: ดึงข้อมูลการจอง (ปรับปรุงความเร็วสูงสุด: ตัด slipUrl ออกหากไม่ใช่แอดมิน และรองรับการกรองตามวันที่)
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const dateParam = searchParams.get('date');
+    const includeSlip = searchParams.get('includeSlip') === 'true';
+
+    const where: any = {};
+    if (dateParam) {
+      where.date = new Date(dateParam);
+    }
+
+    // กรณีทั่วไป (เช่น หน้าจองคอร์ด หรือตรวจสอบสถานะ): ตัด slipUrl ทิ้งเพื่อลดขนาด Payload จากหลาย MB เหลือเพียงไม่กี่ KB
+    if (!includeSlip) {
+      const bookings = await prisma.booking.findMany({
+        where,
+        select: {
+          id: true,
+          customerName: true,
+          phoneNumber: true,
+          date: true,
+          startTime: true,
+          status: true,
+          price: true,
+          createdAt: true,
+          courtId: true,
+          court: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              price: true,
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      return NextResponse.json(bookings);
+    }
+
+    // กรณี Admin (includeSlip=true): ดึงข้อมูลครบถ้วนรวมรูปภาพสลิป
     const bookings = await prisma.booking.findMany({
+      where,
       include: { court: true }, 
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(bookings);
   } catch (error) {
+    console.error("Fetch bookings error:", error);
     return NextResponse.json({ error: 'Error fetching bookings' }, { status: 500 });
   }
 }

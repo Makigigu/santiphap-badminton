@@ -68,7 +68,7 @@ export default function BookingsPage() {
   const fetchData = async () => {
     try {
       // เติม ?t=${Date.now()} เข้าไป
-      const res = await fetch(`/api/bookings?t=${Date.now()}`, { cache: 'no-store' });
+      const res = await fetch(`/api/bookings?includeSlip=true&t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) setBookings(await res.json());
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };

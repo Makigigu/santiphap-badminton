@@ -4,14 +4,18 @@ import { prisma } from '@/lib/prisma';
 // ✅ บรรทัดนี้สำคัญมาก ห้ามลบ (แก้ปัญหา Deploy แล้ว Error)
 export const dynamic = 'force-dynamic';
 
-// 1. GET: ดึงข้อมูลสนามทั้งหมด
+// 1. GET: ดึงข้อมูลสนามทั้งหมด (เพิ่ม Cache-Control ให้ตอบสนองเร็วทันที)
 export async function GET() {
   try {
     const courts = await prisma.court.findMany({
       include: { closures: true },
       orderBy: { id: 'asc' },
     });
-    return NextResponse.json(courts);
+    return NextResponse.json(courts, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+      }
+    });
   } catch (error) {
     return NextResponse.json({ error: 'Error fetching courts' }, { status: 500 });
   }

@@ -45,7 +45,7 @@ export default function DashboardPage() {
   const fetchData = async () => {
     try {
         const [bookingsRes, courtsRes] = await Promise.all([
-            fetch('/api/bookings', { cache: 'no-store' }),
+            fetch('/api/bookings?includeSlip=true', { cache: 'no-store' }),
             fetch('/api/courts', { cache: 'no-store' })
         ]);
 

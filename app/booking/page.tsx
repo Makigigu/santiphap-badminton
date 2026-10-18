@@ -51,8 +51,23 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [minDate, setMinDate] = useState<string>('');
+  // กำหนดวันที่เริ่มต้นเป็นวันปัจจุบันทันทีโดยไม่ต้องรอ useEffect
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+
+  const [minDate] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+
   const [displayDateThai, setDisplayDateThai] = useState('');
   
   // Selection State
@@ -65,39 +80,40 @@ export default function BookingPage() {
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  async function fetchLatestData() {
+  // ฟังก์ชันดึงข้อมูลแบบแยกโหลด: สนามแคชไว้ และดึงการจองเฉพาะวันนั้น (โหลดเร็วในเสี้ยววินาที)
+  async function fetchLatestData(targetDate?: string) {
+    const dateToQuery = targetDate || selectedDate;
     try {
       const [courtsRes, bookingsRes] = await Promise.all([
-         fetch(`/api/courts?t=${Date.now()}`, { cache: 'no-store' }),
-         fetch(`/api/bookings?t=${Date.now()}`, { cache: 'no-store' })
+         courts.length > 0 ? Promise.resolve(null) : fetch('/api/courts'),
+         fetch(`/api/bookings?date=${dateToQuery}&t=${Date.now()}`, { cache: 'no-store' })
       ]);
       
-      if (courtsRes.ok) setCourts(await courtsRes.json());
-      if (bookingsRes.ok) setExistingBookings(await bookingsRes.json());
+      if (courtsRes && courtsRes.ok) setCourts(await courtsRes.json());
+      if (bookingsRes && bookingsRes.ok) setExistingBookings(await bookingsRes.json());
       return true;
     } catch (error) {
       console.error("Error:", error);
       return false;
+    } finally {
+      setLoading(false);
     }
   }
 
+  // อัปเดตการแสดงผลวันที่ภาษาไทยและดึงข้อมูลเมื่อ selectedDate เปลี่ยน
   useEffect(() => {
-    async function init() {
-        await fetchLatestData();
-        setLoading(false);
-    }
-    init();
+    if (!selectedDate) return;
 
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const localDateString = `${year}-${month}-${day}`;
-    
-    setSelectedDate(localDateString); 
-    setMinDate(localDateString);      
-  }, []);
+    const dateObj = new Date(selectedDate.includes('T') ? selectedDate : `${selectedDate}T00:00:00`);
+    const buddhistYear = dateObj.getFullYear() + 543;
+    setDisplayDateThai(format(dateObj, "EEEEที่ dd MMMM", { locale: th }) + " " + buddhistYear);
+    setSelectedSlots([]); 
+    setShowConfirmModal(false);
 
+    fetchLatestData(selectedDate);
+  }, [selectedDate]);
+
+  // ประมวลผลสถานะสนามด้วย Map O(1) รวดเร็วระดับไมโครวินาที
   const dailySchedule = useMemo(() => {
     if (!selectedDate || courts.length === 0) return [];
 
@@ -106,27 +122,27 @@ export default function BookingPage() {
     const currentHour = now.getHours();
     const todayStr = format(now, 'yyyy-MM-dd');
 
+    // จัดทำดัชนีการจองเพื่อค้นหาแบบทันที O(1)
+    const bookedMap = new Map<string, string>();
+    existingBookings.forEach(b => {
+      const s = b.status?.toUpperCase();
+      if (s !== 'REJECTED' && s !== 'CANCELLED') {
+        const startHour = parseInt(b.startTime.split(':')[0]);
+        bookedMap.set(`${b.courtId}_${startHour}`, b.customerName);
+        bookedMap.set(`${b.courtId}_${b.startTime}`, b.customerName);
+      }
+    });
+
     courts.forEach(court => {
         timeSlots.forEach((slotTime, timeIndex) => {
             const slotStartHour = parseInt(slotTime.split(':')[0]); 
             let status: 'free' | 'busy' | 'passed' = 'free';
             let bookedBy = undefined;
 
-            const bookingFound = existingBookings.find(b => {
-                const bookingDate = format(new Date(b.date), 'yyyy-MM-dd');
-                const isTimeMatch = b.startTime.includes(slotTime) || 
-                                    parseInt(b.startTime.split(':')[0]) === slotStartHour;
-
-                return bookingDate === selectedDate &&      
-                    b.courtId === court.id &&            
-                    isTimeMatch &&                       
-                    b.status.toUpperCase() !== 'REJECTED' && 
-                    b.status.toUpperCase() !== 'CANCELLED';
-            });
-
-            if (bookingFound) {
+            const customer = bookedMap.get(`${court.id}_${slotTime}`) || bookedMap.get(`${court.id}_${slotStartHour}`);
+            if (customer) {
                 status = 'busy';
-                bookedBy = bookingFound.customerName;
+                bookedBy = customer;
             } 
             else if (selectedDate === todayStr && slotStartHour <= currentHour) {
                 status = 'passed';
@@ -146,16 +162,6 @@ export default function BookingPage() {
   const getStatus = (courtId: number, timeIndex: number) => {
       return dailySchedule.find(s => s.courtId === courtId && s.timeIndex === timeIndex);
   };
-
-  useEffect(() => {
-    if (selectedDate) {
-        const dateObj = new Date(selectedDate);
-        const buddhistYear = dateObj.getFullYear() + 543;
-        setDisplayDateThai(format(dateObj, "EEEEที่ dd MMMM", { locale: th }) + " " + buddhistYear);
-        setSelectedSlots([]); 
-        setShowConfirmModal(false); // ปิด Modal เมื่อเปลี่ยนวัน
-    }
-  }, [selectedDate]);
 
   const handleSlotClick = (courtId: number, timeIndex: number, status: string) => {
       if (status === 'busy' || status === 'passed') return; 
@@ -254,8 +260,6 @@ export default function BookingPage() {
       }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-slate-500">กำลังโหลดข้อมูล...</div>;
-
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-32"> {/* เพิ่ม Padding ล่างเผื่อพื้นที่ให้ Sticky Bar */}
       
@@ -279,7 +283,7 @@ export default function BookingPage() {
             <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
                 <div>
                     <label className="block text-sm font-bold text-slate-500 mb-2 pl-1">เลือกวันที่</label>
-                    <input type="date" value={selectedDate} min={minDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium shadow-sm" />
+                    <input type="date" value={selectedDate} min={minDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-medium shadow-sm cursor-pointer" />
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-slate-500 mb-2 pl-1">เลือกคอร์ท</label>
@@ -306,7 +310,29 @@ export default function BookingPage() {
 
         {/* Grid แสดงสนาม */}
         <div className="overflow-x-auto pb-6">
-            <div className={`min-w-[1000px] grid gap-4 px-1 ${displayedCourts.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-6'}`}>
+            {loading ? (
+                /* Skeleton Loader แสดงโครงร่างจำลองสนามแบบเคลื่อนไหว */
+                <div className="min-w-[1000px] grid grid-cols-6 gap-4 px-1">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="bg-white rounded-t-xl overflow-hidden border border-slate-200 shadow-sm animate-pulse">
+                            <div className="bg-slate-100 p-3 border-b border-slate-200">
+                                <div className="h-5 bg-slate-300 rounded w-2/3 mb-2"></div>
+                                <div className="h-3 bg-slate-200 rounded w-1/2 mb-1"></div>
+                                <div className="h-3 bg-blue-100 rounded w-1/3"></div>
+                            </div>
+                            <div className="divide-y divide-slate-100 bg-slate-50 p-1 space-y-1">
+                                {[...Array(11)].map((_, j) => (
+                                    <div key={j} className="h-10 bg-slate-200/60 rounded flex items-center px-3 justify-between">
+                                        <div className="h-3 bg-slate-300/60 rounded w-16"></div>
+                                        <div className="h-3 bg-slate-300/30 rounded w-5"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className={`min-w-[1000px] grid gap-4 px-1 ${displayedCourts.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-6'}`}>
                 {displayedCourts.map((court) => {
                     const isClosedMaintenance = court.closures?.some(closure => {
                         const start = format(new Date(closure.startDate), 'yyyy-MM-dd');
@@ -378,6 +404,7 @@ export default function BookingPage() {
                     );
                 })}
             </div>
+            )}
         </div>
 
         {/* Sticky Bottom Bar (แถบสรุปด้านล่าง ไม่บังจอ) */}
