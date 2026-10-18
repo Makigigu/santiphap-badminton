@@ -11,8 +11,8 @@ const mitr = Mitr({
 });
 
 export const metadata: Metadata = {
-  title: "SmashHub - จองสนามแบดมินตัน",
-  description: "Web application for badminton booking",
+  title: "สันติภาพแบดมินตัน น่าน",
+  description: "ระบบจองสนามแบดมินตัน สันติภาพแบดมินตัน น่าน",
 };
 
 export default function RootLayout({

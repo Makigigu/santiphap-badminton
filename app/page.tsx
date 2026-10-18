@@ -103,7 +103,7 @@ export default function Home() {
                     <h3 className="text-xl font-bold mb-3 text-slate-800">จองผ่านโทรศัพท์</h3>
                     <div className="text-slate-500 text-sm leading-relaxed mb-6 flex-grow">
                         <p className="font-semibold text-slate-700">064-038-8696</p>
-                        <p>11:00 - 22:00 น.</p>
+                        <p>08:00 - 22:00 น.</p>
                     </div>
                     <a href="tel:0640388696" className="w-full py-3.5 rounded-xl bg-slate-100 text-slate-800 font-bold text-center hover:bg-slate-200 transition-colors">
                         กดเพื่อโทรออก

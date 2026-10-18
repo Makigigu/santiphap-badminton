@@ -38,6 +38,7 @@ type BookingSlot = {
 };
 
 const timeSlots = [
+  "08:00-09:00", "09:00-10:00", "10:00-11:00",
   "11:00-12:00", "12:00-13:00", "13:00-14:00", "14:00-15:00", 
   "15:00-16:00", "16:00-17:00", "17:00-18:00", "18:00-19:00", 
   "19:00-20:00", "20:00-21:00", "21:00-22:00"
@@ -321,7 +322,7 @@ export default function BookingPage() {
                                 <div className="h-3 bg-blue-100 rounded w-1/3"></div>
                             </div>
                             <div className="divide-y divide-slate-100 bg-slate-50 p-1 space-y-1">
-                                {[...Array(11)].map((_, j) => (
+                                {[...Array(14)].map((_, j) => (
                                     <div key={j} className="h-10 bg-slate-200/60 rounded flex items-center px-3 justify-between">
                                         <div className="h-3 bg-slate-300/60 rounded w-16"></div>
                                         <div className="h-3 bg-slate-300/30 rounded w-5"></div>
