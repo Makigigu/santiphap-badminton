@@ -80,7 +80,7 @@ export default function DashboardPage() {
   const fetchData = async () => {
     try {
         const [bookingsRes, courtsRes] = await Promise.all([
-            fetch('/api/bookings?includeSlip=true', { cache: 'no-store' }),
+            fetch(`/api/bookings?dashboard=true&today=${todayStr}&t=${Date.now()}`, { cache: 'no-store' }),
             fetch('/api/courts', { cache: 'no-store' })
         ]);
 
@@ -118,7 +118,7 @@ export default function DashboardPage() {
     fetchChartData();
   }, [period, chartYear, chartMonth]);
 
-  // ฟังก์ชันอนุมัติแบบกลุ่ม (ทีเดียวหลาย ID)
+  // ฟังก์ชันอนุมัติแบบกลุ่ม (ทีเดียวหลาย ID) - ยิง API ครั้งเดียวแบบ Batch
   const updateGroupStatus = async (ids: string[], status: string) => {
     const action = status === 'APPROVED' ? 'อนุมัติ' : 'ปฏิเสธ';
     if(!confirm(`ยืนยันการ "${action}" ยอดรวมนี้ทั้งหมด?`)) return;
@@ -126,17 +126,18 @@ export default function DashboardPage() {
     const newStatus = status === 'APPROVED' ? 'APPROVED' : 'REJECTED'; // ตรวจสอบสถานะให้ตรง Database
 
     try {
-        // ยิง API วนลูปอัปเดตทุก ID ในกลุ่ม (ใช้ Promise.all เพื่อความเร็ว)
-        await Promise.all(ids.map(id => 
-            fetch('/api/bookings', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, status: newStatus })
-            })
-        ));
+        const res = await fetch('/api/bookings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, status: newStatus })
+        });
         
-        alert("ทำรายการสำเร็จ");
-        fetchData(); 
+        if (res.ok) {
+            alert("ทำรายการสำเร็จ");
+            fetchData(); 
+        } else {
+            alert("เกิดข้อผิดพลาดในการทำรายการ");
+        }
     } catch (error) {
         console.error(error);
         alert("เกิดข้อผิดพลาด");
@@ -240,7 +241,41 @@ export default function DashboardPage() {
 
   const formatCourtName = (name: string) => name.replace('COURT', 'สนาม');
 
-  if (loading) return <div className="p-10 text-center text-slate-500 font-bold">กำลังโหลดข้อมูล...</div>;
+  if (loading) {
+    return (
+      <div className="animate-fade-in space-y-8 p-6">
+        {/* Skeleton Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-pulse">
+            <div className="h-3 w-24 bg-slate-200 rounded mb-3"></div>
+            <div className="h-9 w-32 bg-slate-200 rounded"></div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-pulse">
+            <div className="h-3 w-24 bg-slate-200 rounded mb-3"></div>
+            <div className="h-9 w-32 bg-slate-200 rounded"></div>
+          </div>
+        </div>
+
+        {/* Skeleton Revenue Analytics */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 animate-pulse">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <div className="h-6 w-52 bg-slate-200 rounded mb-2"></div>
+              <div className="h-3 w-40 bg-slate-200 rounded"></div>
+            </div>
+            <div className="h-8 w-44 bg-slate-200 rounded-xl"></div>
+          </div>
+          <div className="h-64 w-full bg-slate-100 rounded-2xl"></div>
+        </div>
+
+        {/* Skeleton Court Schedule */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 animate-pulse">
+          <div className="h-6 w-48 bg-slate-200 rounded mb-6"></div>
+          <div className="h-48 w-full bg-slate-100 rounded-2xl"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in space-y-8 relative p-6">

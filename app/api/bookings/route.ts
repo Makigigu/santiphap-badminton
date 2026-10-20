@@ -4,16 +4,74 @@ import { sendLineNotification } from '@/lib/line'; // Import ฟังก์ช�
 
 export const dynamic = 'force-dynamic';
 
-// 1. GET: ดึงข้อมูลการจอง (ปรับปรุงความเร็วสูงสุด: ตัด slipUrl ออกหากไม่ใช่แอดมิน และรองรับการกรองตามวันที่)
+// 1. GET: ดึงข้อมูลการจอง (ปรับปรุงความเร็วสูงสุด: ตัด slipUrl ออกหากไม่ใช่แอดมิน, รองรับ dashboard mode และกรองตามวันที่/สถานะ)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
+    const statusParam = searchParams.get('status');
     const includeSlip = searchParams.get('includeSlip') === 'true';
+    const forDashboard = searchParams.get('dashboard') === 'true';
+
+    // 1.1 โหมด Dashboard: ดึงเฉพาะวันนี้ (สำหรับผังสนาม/ยอดวันนี้) + รายการที่รอตรวจสลิป (PAID_VERIFY, PENDING)
+    // ตัด slipUrl ออกจากรายการที่ไม่ใช่ PAID_VERIFY/PENDING เพื่อลดขนาด Payload จากหลาย MB เหลือระดับ KB
+    if (forDashboard) {
+      const now = new Date();
+      const todayStr = searchParams.get('today') || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const startOfToday = new Date(`${todayStr}T00:00:00.000Z`);
+      const endOfToday = new Date(`${todayStr}T23:59:59.999Z`);
+
+      const bookings = await prisma.booking.findMany({
+        where: {
+          OR: [
+            { date: { gte: startOfToday, lte: endOfToday } },
+            { status: { in: ['PAID_VERIFY', 'PENDING'] } }
+          ]
+        },
+        select: {
+          id: true,
+          customerName: true,
+          phoneNumber: true,
+          date: true,
+          startTime: true,
+          status: true,
+          price: true,
+          slipUrl: true,
+          createdAt: true,
+          courtId: true,
+          court: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              price: true,
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // ส่ง slipUrl เฉพาะรายการที่ต้องตรวจสลิป เพื่อความเร็วในการส่งข้อมูลสูงสุด
+      const optimized = bookings.map(b => {
+        const isPending = b.status === 'PAID_VERIFY' || b.status === 'PENDING';
+        return {
+          ...b,
+          slipUrl: isPending ? b.slipUrl : null
+        };
+      });
+
+      return NextResponse.json(optimized);
+    }
 
     const where: any = {};
     if (dateParam) {
-      where.date = new Date(dateParam);
+      const startOfDay = new Date(`${dateParam}T00:00:00.000Z`);
+      const endOfDay = new Date(`${dateParam}T23:59:59.999Z`);
+      where.date = { gte: startOfDay, lte: endOfDay };
+    }
+
+    if (statusParam && statusParam !== 'all') {
+      where.status = statusParam;
     }
 
     // กรณีทั่วไป (เช่น หน้าจองคอร์ด หรือตรวจสอบสถานะ): ตัด slipUrl ทิ้งเพื่อลดขนาด Payload จากหลาย MB เหลือเพียงไม่กี่ KB
@@ -44,11 +102,13 @@ export async function GET(request: Request) {
       return NextResponse.json(bookings);
     }
 
-    // กรณี Admin (includeSlip=true): ดึงข้อมูลครบถ้วนรวมรูปภาพสลิป
+    // กรณี Admin ที่ต้องการดูสลิป (includeSlip=true): ดึงข้อมูลครบถ้วน
+    // หากไม่มีการกรองวันที่ ให้ดึงล่าสุด 100 รายการเพื่อป้องกัน Memory Overload
     const bookings = await prisma.booking.findMany({
       where,
       include: { court: true }, 
       orderBy: { createdAt: 'desc' },
+      take: dateParam ? undefined : 150,
     });
     return NextResponse.json(bookings);
   } catch (error) {
@@ -57,13 +117,14 @@ export async function GET(request: Request) {
   }
 }
 
-// 2. PATCH: แก้ไขสถานะ
+// 2. PATCH: แก้ไขสถานะ (รองรับทั้งรายการเดี่ยว id และรายการแบบกลุ่ม ids เพื่อความรวดเร็ว)
 export async function PATCH(request: Request) {
   try {
-    const { id, status, date, startTime, courtId, slipUrl } = await request.json();
-    // ตรวจสอบว่ามี ID หรือไม่ (จำเป็นสำหรับการอัปเดต)
-    if (!id) {
-      return NextResponse.json({ error: 'Missing Booking ID' }, { status: 400 });
+    const { id, ids, status, date, startTime, courtId, slipUrl } = await request.json();
+    
+    // ตรวจสอบว่ามี ID หรือ IDs หรือไม่
+    if (!id && (!Array.isArray(ids) || ids.length === 0)) {
+      return NextResponse.json({ error: 'Missing Booking ID or IDs' }, { status: 400 });
     }    
     const dataToUpdate: any = {};
     if (status) dataToUpdate.status = status;
@@ -71,6 +132,15 @@ export async function PATCH(request: Request) {
     if (startTime) dataToUpdate.startTime = startTime;
     if (courtId) dataToUpdate.courtId = parseInt(courtId);
     if (slipUrl) dataToUpdate.slipUrl = slipUrl; 
+
+    // อัปเดตแบบกลุ่มรวดเดียว (Batch Update) ลดจำนวนรอบการยิง Database
+    if (Array.isArray(ids) && ids.length > 0) {
+      const result = await prisma.booking.updateMany({
+        where: { id: { in: ids } },
+        data: dataToUpdate,
+      });
+      return NextResponse.json({ success: true, count: result.count });
+    }
 
     const updatedBooking = await prisma.booking.update({
       where: { id: id },
@@ -319,15 +389,21 @@ export async function POST(request: Request) {
   }
 }
 
-// 4. DELETE: ลบรายการจอง
+// 4. DELETE: ลบรายการจอง (รองรับทั้งเดี่ยว id และกลุ่ม ids)
 export async function DELETE(request: Request) {
   try {
-    const { id, mode } = await request.json();
+    const { id, ids, mode } = await request.json();
 
     if (mode === 'ALL') {
       await prisma.booking.deleteMany({}); 
       return NextResponse.json({ message: 'Deleted all bookings' });
     } 
+    else if (Array.isArray(ids) && ids.length > 0) {
+      const result = await prisma.booking.deleteMany({
+        where: { id: { in: ids } },
+      });
+      return NextResponse.json({ message: 'Deleted multiple successfully', count: result.count });
+    }
     else if (id) {
       await prisma.booking.delete({
         where: { id: String(id) },
@@ -335,7 +411,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ message: 'Deleted successfully' });
     }
 
-    return NextResponse.json({ error: 'Missing ID or Mode' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing ID, IDs or Mode' }, { status: 400 });
   } catch (error) {
     console.error("Delete Error:", error);
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });

@@ -60,19 +60,30 @@ export default function BookingsPage() {
       selectedTimes: [] as string[] // เก็บเวลาที่เลือกใหม่
   });
 
+  const fetchData = async (targetDate = filterDate, targetStatus = filterStatus) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (targetDate) params.append('date', targetDate);
+      if (targetStatus && targetStatus !== 'all') params.append('status', targetStatus);
+      params.append('includeSlip', 'true');
+      params.append('t', Date.now().toString());
+
+      const res = await fetch(`/api/bookings?${params.toString()}`, { cache: 'no-store' });
+      if (res.ok) setBookings(await res.json());
+    } catch (error) { 
+      console.error(error); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
   useEffect(() => {
-    setFilterDate(format(new Date(), 'yyyy-MM-dd'));
-    fetchData();
+    const today = format(new Date(), 'yyyy-MM-dd');
+    setFilterDate(today);
+    fetchData(today, 'all');
     fetchCourts();
   }, []);
-
-  const fetchData = async () => {
-    try {
-      // เติม ?t=${Date.now()} เข้าไป
-      const res = await fetch(`/api/bookings?includeSlip=true&t=${Date.now()}`, { cache: 'no-store' });
-      if (res.ok) setBookings(await res.json());
-    } catch (error) { console.error(error); } finally { setLoading(false); }
-  };
 
   const fetchCourts = async () => {
       const res = await fetch('/api/courts');
@@ -84,20 +95,24 @@ export default function BookingsPage() {
   const handleDeleteGroup = async (ids: string[]) => {
       if (!confirm(`⚠️ คุณต้องการลบ ${ids.length} รายการนี้ถาวรหรือไม่?`)) return;
       try {
-          await Promise.all(ids.map(id => 
-              fetch('/api/bookings', {
-                  method: 'DELETE',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id }),
-              })
-          ));
-          // ลบข้อมูลออกจากหน้าจอทันทีโดยไม่ต้องรอรีเฟรชใหม่
-          setBookings(prev => prev.filter(b => !ids.includes(b.id)));
+          const res = await fetch('/api/bookings', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids }),
+          });
           
-          alert('ลบรายการเรียบร้อย');
-          setEditingGroup(null);
-          fetchData();
-      } catch (error) { console.error(error); alert('เชื่อมต่อ Server ไม่ได้'); }
+          if (res.ok) {
+              setBookings(prev => prev.filter(b => !ids.includes(b.id)));
+              alert('ลบรายการเรียบร้อย');
+              setEditingGroup(null);
+              fetchData();
+          } else {
+              alert('เกิดข้อผิดพลาดในการลบรายการ');
+          }
+      } catch (error) { 
+          console.error(error); 
+          alert('เชื่อมต่อ Server ไม่ได้'); 
+      }
   };
 
   const handleDeleteAll = async () => {
@@ -438,8 +453,27 @@ export default function BookingsPage() {
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
                 <h2 className="text-xl font-extrabold text-slate-800 whitespace-nowrap">📅 ประวัติการจอง</h2>
                 <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-                    <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="bg-transparent text-sm font-bold text-slate-600 focus:outline-none cursor-pointer" />
-                    {filterDate && <button onClick={() => setFilterDate('')} className="text-xs text-red-500 font-bold px-2">ดูทั้งหมด</button>}
+                    <input 
+                        type="date" 
+                        value={filterDate} 
+                        onChange={(e) => {
+                            const newDate = e.target.value;
+                            setFilterDate(newDate);
+                            fetchData(newDate, filterStatus);
+                        }} 
+                        className="bg-transparent text-sm font-bold text-slate-600 focus:outline-none cursor-pointer" 
+                    />
+                    {filterDate && (
+                        <button 
+                            onClick={() => {
+                                setFilterDate('');
+                                fetchData('', filterStatus);
+                            }} 
+                            className="text-xs text-red-500 font-bold px-2 hover:underline"
+                        >
+                            ดูทั้งหมด
+                        </button>
+                    )}
                 </div>
                 <button onClick={handleDeleteAll} className="text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-bold border border-red-100 hover:bg-red-100 flex items-center gap-1">
                     🗑️ ล้างทั้งหมด
@@ -448,15 +482,28 @@ export default function BookingsPage() {
 
             <div className="flex gap-2 flex-wrap justify-center overflow-x-auto pb-2 md:pb-0">
                 {['all', 'PAID_VERIFY', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'].map(status => (
-                    <button key={status} onClick={() => setFilterStatus(status)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${filterStatus === status ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600'}`}>
+                    <button key={status} 
+                        onClick={() => {
+                            setFilterStatus(status);
+                            fetchData(filterDate, status);
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap ${filterStatus === status ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                         {status === 'PAID_VERIFY' ? 'รอตรวจสอบ' : statusLabels[status] || status}
                     </button>
                 ))}
             </div>
         </div>
 
-        {groupedBookings.length > 0 ? (
+        {loading ? (
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 animate-pulse space-y-4">
+                <div className="h-6 w-48 bg-slate-200 rounded"></div>
+                <div className="space-y-3">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="h-12 bg-slate-100 rounded-xl"></div>
+                    ))}
+                </div>
+            </div>
+        ) : groupedBookings.length > 0 ? (
             groupedBookings.map((group) => (
                 <div key={group.date} className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="bg-slate-100/50 px-6 py-4 border-b border-slate-100 flex items-center gap-2">
