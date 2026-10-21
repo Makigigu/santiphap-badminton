@@ -17,15 +17,12 @@ export default function CheckStatusPage() {
     setLoading(true);
     
     try {
-        const res = await fetch('/api/bookings');
-        const allBookings = await res.json();
-        // กรองหาเฉพาะเบอร์ลูกค้า
-        const myBookings = allBookings.filter((b: any) => b.phoneNumber === phone);
-        // เรียงจากใหม่ไปเก่า
-        myBookings.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        
-        setBookings(myBookings);
-        setSearched(true);
+        const res = await fetch(`/api/bookings/history?phone=${encodeURIComponent(phone.trim())}`);
+        if (res.ok) {
+            const myBookings = await res.json();
+            setBookings(myBookings);
+            setSearched(true);
+        }
     } catch (error) {
         console.error(error);
     } finally {

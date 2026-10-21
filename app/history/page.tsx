@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
 
@@ -40,28 +40,42 @@ export default function HistoryPage() {
   const [allBookings, setAllBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // State สำหรับค้นหาด้วยเบอร์โทร
   const [searchPhone, setSearchPhone] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
 
   // ฟังก์ชันค้นหาประวัติ
-  const handleSearch = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!searchPhone.trim()) return;
+  const fetchHistory = async (phoneToSearch: string) => {
+    const clean = phoneToSearch.trim();
+    if (!clean) return;
 
-      setLoading(true);
-      try {
-          const res = await fetch(`/api/bookings/history?phone=${searchPhone}`);
-          if (res.ok) {
-              const data = await res.json();
-              setAllBookings(data);
-              setHasSearched(true);
-          }
-      } catch (error) {
-          console.error(error);
-      } finally {
-          setLoading(false);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/bookings/history?phone=${encodeURIComponent(clean)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllBookings(data);
+        setHasSearched(true);
+        localStorage.setItem('last_search_phone', clean);
       }
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // โหลดเบอร์โทรล่าสุดที่เคยค้นหาไว้อัตโนมัติ (เปิดหน้ามาเห็นเลย ไม่ต้องพิมพ์ใหม่)
+  useEffect(() => {
+    const savedPhone = localStorage.getItem('last_search_phone');
+    if (savedPhone) {
+      setSearchPhone(savedPhone);
+      fetchHistory(savedPhone);
+    }
+  }, []);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchHistory(searchPhone);
   };
 
   // --- Logic Grouping (แบบใหม่: แยกสนาม) ---
@@ -186,8 +200,24 @@ export default function HistoryPage() {
             </form>
         </div>
 
+        {/* Loading Skeleton */}
+        {loading && (
+            <div className="space-y-4 mb-6 animate-pulse">
+                {[1, 2].map((i) => (
+                    <div key={i} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="h-4 w-28 bg-slate-200 rounded"></div>
+                            <div className="h-6 w-24 bg-slate-200 rounded-full"></div>
+                        </div>
+                        <div className="h-24 bg-slate-100 rounded-xl mb-3"></div>
+                        <div className="h-4 w-36 bg-slate-200 rounded"></div>
+                    </div>
+                ))}
+            </div>
+        )}
+
         {/* Results */}
-        {hasSearched && (
+        {!loading && hasSearched && (
             <div className="animate-fade-in-up">
                 {/* Tabs */}
                 <div className="flex p-1 bg-white rounded-xl shadow-sm border border-slate-200 mb-6 sticky top-20 z-40">

@@ -36,6 +36,7 @@ model Booking {
   @@index([status])
   @@index([createdAt])
   @@index([courtId])
+  @@index([phoneNumber])
 }
 
 model Admin {

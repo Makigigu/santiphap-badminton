@@ -47,6 +47,7 @@ export default function BookingsPage() {
   const [courts, setCourts] = useState<Court[]>([]); 
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDate, setFilterDate] = useState<string>(''); 
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   // Edit Modal State
@@ -273,7 +274,10 @@ export default function BookingsPage() {
         if (filterDate) {
             matchesDate = format(new Date(b.date), 'yyyy-MM-dd') === filterDate;
         }
-        return matchesStatus && matchesDate;
+        const matchesSearch = !searchTerm.trim() || 
+            b.phoneNumber.includes(searchTerm.trim()) || 
+            b.customerName.toLowerCase().includes(searchTerm.trim().toLowerCase());
+        return matchesStatus && matchesDate && matchesSearch;
     });
 
     const dateGroups: { [key: string]: Booking[] } = {};
@@ -311,9 +315,7 @@ export default function BookingsPage() {
                 items: Object.values(subGroups).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) 
             };
         });
-  }, [bookings, filterStatus, filterDate]);
-
-  if (loading) return <div className="p-10 text-center text-slate-500">กำลังโหลดข้อมูล...</div>;
+  }, [bookings, filterStatus, filterDate, searchTerm]);
 
   return (
     <div className="space-y-6 animate-fade-in relative p-6 bg-slate-50 min-h-screen">
@@ -475,6 +477,22 @@ export default function BookingsPage() {
                         </button>
                     )}
                 </div>
+
+                {/* ค้นหาเบอร์โทร / ชื่อลูกค้า */}
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input 
+                        type="text" 
+                        placeholder="ค้นหาเบอร์ / ชื่อ..." 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-400 w-32 sm:w-40" 
+                    />
+                    {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} className="text-xs text-slate-400 hover:text-red-500 font-bold">×</button>
+                    )}
+                </div>
+
                 <button onClick={handleDeleteAll} className="text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-bold border border-red-100 hover:bg-red-100 flex items-center gap-1">
                     🗑️ ล้างทั้งหมด
                 </button>
