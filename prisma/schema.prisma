@@ -54,3 +54,16 @@ model CourtClosure {
 
   @@index([courtId])
 }
+
+model CourtRule {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @db.Text
+  orderNumber Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderNumber])
+  @@index([isActive])
+}

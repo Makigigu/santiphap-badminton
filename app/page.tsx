@@ -1,9 +1,67 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
+type CourtRule = {
+  id: number;
+  title: string;
+  description: string;
+  orderNumber: number;
+  isActive: boolean;
+};
+
+const DEFAULT_RULES: CourtRule[] = [
+  {
+    id: 1,
+    title: 'การจองและชำระเงิน',
+    description:
+      'เมื่อทำการจองแล้ว ต้องโอนชำระเงินเต็มจำนวนทันที พร้อมแนบสลิปเพื่อยืนยันสิทธิ์ หากไม่ดำเนินการเป็นเวลา 30 นาที ระบบจะยกเลิกการจองทันที',
+    orderNumber: 1,
+    isActive: true,
+  },
+  {
+    id: 2,
+    title: 'การเลื่อน/ยกเลิก',
+    description:
+      'ต้องการเลื่อนวัน ต้องแจ้งล่วงหน้าอย่างน้อย 1 วัน (ก่อน 22:00 น.) สามารถเลื่อนได้ 1 ครั้งภายในเดือนเดียวกัน สงวนสิทธิ์ไม่คืนเงินทุกกรณี',
+    orderNumber: 2,
+    isActive: true,
+  },
+  {
+    id: 3,
+    title: 'มารยาทการใช้สนาม',
+    description:
+      'กรุณาสวมรองเท้ากีฬาแบดมินตันเท่านั้น เพื่อรักษาพื้นสนาม และออกจากคอร์ทเมื่อหมดเวลาจอง เพื่อให้ลูกค้าท่านถัดไปได้ใช้บริการ',
+    orderNumber: 3,
+    isActive: true,
+  },
+];
+
 export default function Home() {
+  const [rules, setRules] = useState<CourtRule[]>(DEFAULT_RULES);
+  const [loadingRules, setLoadingRules] = useState(true);
+
+  useEffect(() => {
+    async function loadRules() {
+      try {
+        const res = await fetch('/api/rules?activeOnly=true');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setRules(data);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading rules:', e);
+      } finally {
+        setLoadingRules(false);
+      }
+    }
+    loadRules();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-100 pb-10">
       
@@ -212,38 +270,24 @@ export default function Home() {
                     </div>
 
                     <div className="grid gap-6">
-                        {/* กฎข้อ 1 */}
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex gap-4 hover:shadow-md transition">
-                            <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 shrink-0">1</div>
-                            <div>
-                                <h4 className="font-bold text-lg text-slate-800 mb-2">การจองและชำระเงิน</h4>
-                                <p className="text-slate-600 text-sm leading-relaxed">
-                                    เมื่อทำการจองแล้ว <span className="text-red-600 font-bold">ต้องโอนชำระเงินเต็มจำนวนทันที พร้อมแนบสลิปเพื่อยืนยันสิทธิ์</span> หากไม่ดำเนินการเป็นเวลา 30 นาที ระบบจะยกเลิกการจองทันที
-                                </p>
-                            </div>
+                      {rules.map((rule, idx) => (
+                        <div
+                          key={rule.id || idx}
+                          className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex gap-4 hover:shadow-md transition"
+                        >
+                          <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 shrink-0">
+                            {rule.orderNumber || idx + 1}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-lg text-slate-800 mb-2">
+                              {rule.title}
+                            </h4>
+                            <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
+                              {rule.description}
+                            </p>
+                          </div>
                         </div>
-                        
-                        {/* กฎข้อ 2 */}
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex gap-4 hover:shadow-md transition">
-                            <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 shrink-0">2</div>
-                            <div>
-                                <h4 className="font-bold text-lg text-slate-800 mb-2">การเลื่อน/ยกเลิก</h4>
-                                <p className="text-slate-600 text-sm leading-relaxed">
-                                    ต้องการเลื่อนวัน <span className="text-red-600 font-bold">ต้องแจ้งล่วงหน้าอย่างน้อย 1 วัน (ก่อน 22:00 น.)</span> สามารถเลื่อนได้ 1 ครั้งภายในเดือนเดียวกัน สงวนสิทธิ์ไม่คืนเงินทุกกรณี
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* กฎข้อ 3 */}
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex gap-4 hover:shadow-md transition">
-                            <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 shrink-0">3</div>
-                            <div>
-                                <h4 className="font-bold text-lg text-slate-800 mb-2">มารยาทการใช้สนาม</h4>
-                                <p className="text-slate-600 text-sm leading-relaxed">
-                                    กรุณาสวมรองเท้ากีฬาแบดมินตันเท่านั้น เพื่อรักษาพื้นสนาม และออกจากคอร์ทเมื่อหมดเวลาจอง เพื่อให้ลูกค้าท่านถัดไปได้ใช้บริการ
-                                </p>
-                            </div>
-                        </div>
+                      ))}
                     </div>
 
                     {/* ข้อมูลบัญชี */}
