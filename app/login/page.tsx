@@ -18,19 +18,28 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
 
-    // --- จำลองการตรวจสอบ (Mock Auth) ---
-    setTimeout(() => {
-        if (username === 'admin' && password === '1234') {
-            // ฝัง Cookie เพื่อบอก Middleware ว่า "ฉันล็อกอินแล้ว" (อายุ 1 วัน)
-            document.cookie = "admin_token=true; path=/; max-age=86400";
-            
-            // ไปหน้า Admin
-            router.push('/admin');
-        } else {
-            setError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-            setIsLoading(false);
-        }
-    }, 800);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // นำทางไปยังหน้า Admin ทันที
+        router.push('/admin');
+        router.refresh();
+      } else {
+        setError(data.error || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+      setIsLoading(false);
+    }
   };
 
   return (

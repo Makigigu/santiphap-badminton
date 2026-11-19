@@ -13,7 +13,7 @@ export async function DELETE() {
     // - สร้างก่อนเวลา 30 นาทีที่แล้ว (เก่ากว่า)
     const result = await prisma.booking.deleteMany({
       where: {
-        status: 'PENDING',
+        status: { in: ['PENDING', 'pending'] },
         createdAt: {
           lt: thirtyMinutesAgo, // lt = Less Than (น้อยกว่าเวลาที่กำหนด)
         },

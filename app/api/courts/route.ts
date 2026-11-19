@@ -85,3 +85,64 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });
   }
 }
+
+// 4. DELETE: ลบสนาม
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get('id');
+
+    if (!id) {
+      const body = await request.json().catch(() => null);
+      if (body?.id) id = body.id;
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing court ID' }, { status: 400 });
+    }
+
+    const courtIdNum = Number(id);
+
+    // ตรวจสอบว่ามีรายการจองค้างอยู่หรือไม่
+    const activeBookingsCount = await prisma.booking.count({
+      where: {
+        courtId: courtIdNum,
+        status: { notIn: ['CANCELLED', 'REJECTED', 'cancelled', 'rejected'] },
+      },
+    });
+
+    if (activeBookingsCount > 0) {
+      return NextResponse.json(
+        { error: `ไม่สามารถลบสนามได้ เนื่องจากมีรายการจองอยู่ ${activeBookingsCount} รายการ` },
+        { status: 400 }
+      );
+    }
+
+    // ตรวจสอบว่ามีประวัติการจองทั้งหมดหรือไม่
+    const totalBookingsCount = await prisma.booking.count({
+      where: { courtId: courtIdNum },
+    });
+
+    if (totalBookingsCount > 0) {
+      return NextResponse.json(
+        { error: 'ไม่สามารถลบสนามได้ เนื่องจากมีประวัติการจองค้างอยู่ในระบบ' },
+        { status: 400 }
+      );
+    }
+
+    // ลบวันปิดปรับปรุงของสนามนี้ก่อน
+    await prisma.courtClosure.deleteMany({
+      where: { courtId: courtIdNum },
+    });
+
+    // ลบสนาม
+    await prisma.court.delete({
+      where: { id: courtIdNum },
+    });
+
+    return NextResponse.json({ success: true, message: 'ลบสนามสำเร็จ' });
+  } catch (error) {
+    console.error('Delete court error:', error);
+    return NextResponse.json({ error: 'Failed to delete court' }, { status: 500 });
+  }
+}

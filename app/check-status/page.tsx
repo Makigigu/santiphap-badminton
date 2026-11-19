@@ -47,51 +47,65 @@ export default function CheckStatusPage() {
             <h1 className="text-2xl font-extrabold text-slate-800 mb-2">🔎 ค้นหาการจองของคุณ</h1>
             <p className="text-slate-500 text-sm mb-6">กรอกเบอร์โทรศัพท์ที่ใช้จอง เพื่อดูสถานะล่าสุด</p>
             
-            <form onSubmit={handleSearch} className="flex gap-2">
+            <form onSubmit={handleSearch} className="space-y-3">
                 <input 
                     type="tel" 
                     placeholder="เบอร์โทรศัพท์ (เช่น 089xxxxxxx)" 
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-center"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-center text-slate-800"
                     required
                 />
+                <button 
+                    type="submit"
+                    disabled={loading} 
+                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200 active:scale-98 disabled:opacity-50"
+                >
+                    {loading ? 'กำลังค้นหา...' : 'ตรวจสอบสถานะ'}
+                </button>
             </form>
-            <button 
-                onClick={handleSearch}
-                disabled={loading} 
-                className="w-full mt-3 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200"
-            >
-                {loading ? 'กำลังค้นหา...' : 'ตรวจสอบสถานะ'}
-            </button>
         </div>
 
         {searched && (
             <div className="space-y-4">
-                {bookings.length > 0 ? bookings.map((b: any) => (
+                {bookings.length > 0 ? bookings.map((b: any) => {
+                    const s = (b.status || '').toUpperCase();
+                    const isApproved = s === 'APPROVED' || s === 'COMPLETED';
+                    const isPaidVerify = s === 'PAID_VERIFY';
+                    const isRejected = s === 'REJECTED';
+                    const isCancelled = s === 'CANCELLED';
+
+                    const borderBarColor = isApproved ? 'bg-green-500' :
+                                           isPaidVerify ? 'bg-blue-500' :
+                                           isRejected ? 'bg-red-500' :
+                                           isCancelled ? 'bg-slate-300' :
+                                           'bg-orange-500';
+
+                    const badgeStyle = isApproved ? 'bg-green-50 text-green-700 border-green-200' :
+                                       isPaidVerify ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                       isRejected ? 'bg-red-50 text-red-700 border-red-200' :
+                                       isCancelled ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                                       'bg-orange-50 text-orange-700 border-orange-200';
+
+                    const statusText = isApproved ? 'จองสำเร็จ ✅' :
+                                       isPaidVerify ? 'รอตรวจสอบสลิป ⏳' :
+                                       isRejected ? 'ถูกปฏิเสธ ❌' :
+                                       isCancelled ? 'ยกเลิก' :
+                                       'รอชำระเงิน';
+
+                    return (
                     <div key={b.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
-                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                            b.status === 'approved' ? 'bg-green-500' : 
-                            b.status === 'rejected' ? 'bg-red-500' : 
-                            b.status === 'cancelled' ? 'bg-slate-300' :
-                            'bg-orange-500'
-                        }`}></div>
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${borderBarColor}`}></div>
                         
                         <div className="flex justify-between items-start mb-2 pl-3">
                             <div>
                                 <h3 className="font-bold text-slate-800 text-lg">{b.court.name.replace('COURT', 'สนาม')}</h3>
                                 <p className="text-sm text-slate-500 font-medium">
-                                    {format(new Date(b.date), "d MMM yy", { locale: th })} | <span className="text-slate-800">{b.startTime}</span>
+                                    {format(new Date(b.date), "d MMM yy", { locale: th })} | <span className="text-slate-800 font-bold">{b.startTime} น.</span>
                                 </p>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                                b.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : 
-                                b.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : 
-                                b.status === 'cancelled' ? 'bg-slate-50 text-slate-500 border-slate-200' :
-                                'bg-orange-50 text-orange-700 border-orange-200'}`}>
-                                {b.status === 'pending' ? 'รอตรวจสอบ' : 
-                                 b.status === 'approved' ? 'จองสำเร็จ ✅' :
-                                 b.status === 'cancelled' ? 'ยกเลิก' : 'ถูกปฏิเสธ ❌'}
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${badgeStyle}`}>
+                                {statusText}
                             </span>
                         </div>
                         <div className="flex justify-between text-sm border-t border-slate-50 pt-3 mt-2 pl-3">
@@ -99,7 +113,9 @@ export default function CheckStatusPage() {
                             <span className="text-slate-400 text-xs">ทำรายการเมื่อ: {format(new Date(b.createdAt), "d MMM HH:mm", { locale: th })}</span>
                         </div>
                     </div>
-                )) : (
+                    );
+                }) : (
+
                     <div className="text-center py-10 opacity-60">
                         <div className="text-4xl mb-2">📄</div>
                         <div className="text-slate-500">ไม่พบประวัติการจองของเบอร์นี้</div>

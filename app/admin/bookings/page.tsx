@@ -216,6 +216,7 @@ export default function BookingsPage() {
                              startTime: newTimes[i],
                              courtId: editForm.courtId,
                              price: unitPrice,
+                             notify: false,
                              status: editForm.status,
                              slipUrl: editingGroup.slipUrl // ใช้สลิปเดิม
                          })

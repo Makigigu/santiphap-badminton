@@ -269,25 +269,38 @@ export default function Home() {
                         <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900">ระเบียบการใช้สนาม</h2>
                     </div>
 
-                    <div className="grid gap-6">
-                      {rules.map((rule, idx) => (
-                        <div
-                          key={rule.id || idx}
-                          className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex gap-4 hover:shadow-md transition"
-                        >
-                          <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 shrink-0">
-                            {rule.orderNumber || idx + 1}
+                    <div className="relative">
+                      {/* กล่องรายการกฎ: ล็อคความสูงและ Scroll ภายในกล่อง ไม่ให้หน้าเว็บยืดยาว */}
+                      <div className="space-y-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar scroll-smooth">
+                        {rules.map((rule, idx) => (
+                          <div
+                            key={rule.id || idx}
+                            className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex gap-4 hover:shadow-md transition"
+                          >
+                            <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 shrink-0">
+                              {rule.orderNumber || idx + 1}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-lg text-slate-800 mb-2">
+                                {rule.title}
+                              </h4>
+                              <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
+                                {rule.description}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="font-bold text-lg text-slate-800 mb-2">
-                              {rule.title}
-                            </h4>
-                            <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
-                              {rule.description}
-                            </p>
-                          </div>
+                        ))}
+                      </div>
+
+                      {rules.length > 3 && (
+                        <div className="mt-3 flex items-center justify-between text-xs text-slate-400 px-1">
+                          <span>ทั้งหมด {rules.length} ข้อ</span>
+                          <span className="inline-flex items-center gap-1 font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            เลื่อนในกล่องเพื่ออ่านข้อถัดไป
+                          </span>
                         </div>
-                      ))}
+                      )}
                     </div>
 
                     {/* ข้อมูลบัญชี */}
@@ -297,9 +310,9 @@ export default function Home() {
                         
                         <p className="text-blue-800 font-bold mb-4 text-lg relative z-10">ช่องทางการชำระเงิน</p>
                         <div className="bg-white p-6 rounded-2xl shadow-sm inline-block w-full max-w-md relative z-10">
-                                <div className="text-slate-500 text-xs font-bold uppercase mb-1">ธนาคารกสิกรไทย</div>
-                                <div className="text-2xl font-extrabold text-blue-600 tracking-wider">XXX-X-XXXXX-X</div>
-                                <div className="text-slate-700 font-medium mt-1">ชื่อบัญชี: สันติภาพ แบดมินตัน</div>
+                                <div className="text-slate-500 text-xs font-bold uppercase mb-1">พร้อมเพย์ PromptPay (ธนาคารกรุงไทย)</div>
+                                <div className="text-2xl font-extrabold text-blue-600 tracking-wider">064-038-8696</div>
+                                <div className="text-slate-700 font-medium mt-1">ชื่อบัญชี: นายมงคลชัย ต๊อดแก้ว</div>
                         </div>
                     </div>
                 </div>
@@ -335,8 +348,8 @@ export default function Home() {
             <p className="text-slate-400 mb-8 max-w-lg mx-auto">สนามแบดมินตันมาตรฐาน เพื่อสุขภาพและมิตรภาพที่ดี ของชาวจังหวัดน่าน</p>
             
             <div className="flex justify-center gap-6 mb-8">
-                <a href="#" className="text-slate-400 hover:text-white transition">Facebook</a>
-                <a href="#" className="text-slate-400 hover:text-white transition">Line</a>
+                <a href="https://www.facebook.com/profile.php?id=100069056293502" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Facebook</a>
+                <a href="https://line.me/R/ti/p/@915avwsq" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Line</a>
                 <a href="tel:0640388696" className="text-slate-400 hover:text-white transition">064-038-8696</a>
             </div>
 
