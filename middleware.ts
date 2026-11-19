@@ -19,6 +19,7 @@ export function middleware(req: NextRequest) {
 
   if (
     pathname.startsWith('/api/revenue') ||
+    (pathname.startsWith('/api/settings') && method !== 'GET') ||
     (pathname.startsWith('/api/courts') && method !== 'GET') ||
     (pathname.startsWith('/api/rules') && method !== 'GET') ||
     (pathname.startsWith('/api/closures') && method !== 'GET') ||

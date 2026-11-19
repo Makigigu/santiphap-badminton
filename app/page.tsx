@@ -42,25 +42,47 @@ const DEFAULT_RULES: CourtRule[] = [
 export default function Home() {
   const [rules, setRules] = useState<CourtRule[]>(DEFAULT_RULES);
   const [loadingRules, setLoadingRules] = useState(true);
+  const [paymentSetting, setPaymentSetting] = useState({
+    promptPayId: process.env.NEXT_PUBLIC_PROMPTPAY_ID || '0640388696',
+    accountName: process.env.NEXT_PUBLIC_PROMPTPAY_NAME || 'นายมงคลชัย ต๊อดแก้ว',
+    bankName: process.env.NEXT_PUBLIC_PROMPTPAY_BANK || 'ธนาคารกรุงไทย',
+  });
 
   useEffect(() => {
-    async function loadRules() {
+    async function loadData() {
       try {
-        const res = await fetch('/api/rules?activeOnly=true');
-        if (res.ok) {
-          const data = await res.json();
+        const [rulesRes, paymentRes] = await Promise.all([
+          fetch('/api/rules?activeOnly=true'),
+          fetch('/api/settings/payment'),
+        ]);
+
+        if (rulesRes.ok) {
+          const data = await rulesRes.json();
           if (Array.isArray(data) && data.length > 0) {
             setRules(data);
           }
         }
+
+        if (paymentRes.ok) {
+          const pData = await paymentRes.json();
+          if (pData.promptPayId) {
+            setPaymentSetting(pData);
+          }
+        }
       } catch (e) {
-        console.error('Error loading rules:', e);
+        console.error('Error loading data:', e);
       } finally {
         setLoadingRules(false);
       }
     }
-    loadRules();
+    loadData();
   }, []);
+
+  const formattedPromptPay = paymentSetting.promptPayId.length === 10
+    ? `${paymentSetting.promptPayId.slice(0, 3)}-${paymentSetting.promptPayId.slice(3, 6)}-${paymentSetting.promptPayId.slice(6)}`
+    : paymentSetting.promptPayId.length === 13
+    ? `${paymentSetting.promptPayId.slice(0, 1)}-${paymentSetting.promptPayId.slice(1, 5)}-${paymentSetting.promptPayId.slice(5, 10)}-${paymentSetting.promptPayId.slice(10, 12)}-${paymentSetting.promptPayId.slice(12)}`
+    : paymentSetting.promptPayId;
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-100 pb-10">
@@ -310,9 +332,9 @@ export default function Home() {
                         
                         <p className="text-blue-800 font-bold mb-4 text-lg relative z-10">ช่องทางการชำระเงิน</p>
                         <div className="bg-white p-6 rounded-2xl shadow-sm inline-block w-full max-w-md relative z-10">
-                                <div className="text-slate-500 text-xs font-bold uppercase mb-1">พร้อมเพย์ PromptPay (ธนาคารกรุงไทย)</div>
-                                <div className="text-2xl font-extrabold text-blue-600 tracking-wider">064-038-8696</div>
-                                <div className="text-slate-700 font-medium mt-1">ชื่อบัญชี: นายมงคลชัย ต๊อดแก้ว</div>
+                                <div className="text-slate-500 text-xs font-bold uppercase mb-1">พร้อมเพย์ PromptPay ({paymentSetting.bankName})</div>
+                                <div className="text-2xl font-extrabold text-blue-600 tracking-wider font-mono">{formattedPromptPay}</div>
+                                <div className="text-slate-700 font-medium mt-1">ชื่อบัญชี: {paymentSetting.accountName}</div>
                         </div>
                     </div>
                 </div>

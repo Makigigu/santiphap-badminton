@@ -67,3 +67,12 @@ model CourtRule {
   @@index([orderNumber])
   @@index([isActive])
 }
+
+model PaymentSetting {
+  id          Int      @id @default(1)
+  promptPayId String   @default("0640388696")
+  accountName String   @default("")
+  bankName    String   @default("")
+  updatedAt   DateTime @updatedAt
+}
+

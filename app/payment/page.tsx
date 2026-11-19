@@ -54,13 +54,31 @@ function PaymentContent() {
   const [timeLeft, setTimeLeft] = useState<number>(1800);
   const [isExpired, setIsExpired] = useState(false);
 
-  // ข้อมูลพร้อมเพย์ (Dynamic PromptPay)
-  const promptPayId = process.env.NEXT_PUBLIC_PROMPTPAY_ID || '0640388696';
-  const promptPayName = process.env.NEXT_PUBLIC_PROMPTPAY_NAME || 'นายมงคลชัย ต๊อดแก้ว';
-  const promptPayBank = process.env.NEXT_PUBLIC_PROMPTPAY_BANK || 'ธนาคารกรุงไทย';
+  // ข้อมูลพร้อมเพย์ (Dynamic PromptPay จาก Database ผ่าน API)
+  const [promptPayId, setPromptPayId] = useState<string>(process.env.NEXT_PUBLIC_PROMPTPAY_ID || '0640388696');
+  const [promptPayName, setPromptPayName] = useState<string>(process.env.NEXT_PUBLIC_PROMPTPAY_NAME || 'นายมงคลชัย ต๊อดแก้ว');
+  const [promptPayBank, setPromptPayBank] = useState<string>(process.env.NEXT_PUBLIC_PROMPTPAY_BANK || 'ธนาคารกรุงไทย');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrLoading, setQrLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
+
+  // ดึงข้อมูลบัญชีพร้อมเพย์ล่าสุดจาก Database
+  useEffect(() => {
+    async function loadPaymentSettings() {
+      try {
+        const res = await fetch('/api/settings/payment');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.promptPayId) setPromptPayId(data.promptPayId);
+          if (data.accountName) setPromptPayName(data.accountName);
+          if (data.bankName) setPromptPayBank(data.bankName);
+        }
+      } catch (err) {
+        console.error('Error fetching payment setting:', err);
+      }
+    }
+    loadPaymentSettings();
+  }, []);
 
   // สร้าง Dynamic PromptPay QR Code พร้อมระบุยอดเงินอัตโนมัติ
   useEffect(() => {
