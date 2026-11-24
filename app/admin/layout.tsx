@@ -2,13 +2,28 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [profile, setProfile] = useState({ logoUrl: '/logo.jpg', siteName: 'สันติภาพ' });
+
+  useEffect(() => {
+    fetch('/api/settings/profile')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setProfile({
+            logoUrl: data.logoUrl || '/logo.jpg',
+            siteName: data.siteName || 'สันติภาพ',
+          });
+        }
+      })
+      .catch(() => {});
+  }, [pathname]);
 
   const handleLogout = async () => {
     try {
@@ -52,6 +67,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       path: '/admin/contact',
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
     },
+    { 
+      name: 'โปรไฟล์และรูปภาพ', 
+      path: '/admin/profile',
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+    },
   ];
 
   return (
@@ -61,15 +81,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md print:hidden">
          {/* มีรูปและข้อความ */}
          <div className="flex items-center gap-3">
-            <Image 
-                src="/logo.jpg" 
+            <img 
+                src={profile.logoUrl || "/logo.jpg"} 
                 alt="Logo" 
-                width={40} 
-                height={40} 
-                className="h-10 w-10 object-contain rounded-lg bg-white/10" // ใส่พื้นหลังจางๆ ให้โลโก้ดูเด่นขึ้น
+                className="h-10 w-10 object-contain rounded-lg bg-white/10"
+                onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
             />
             <div className="font-extrabold tracking-tight">
-               <div>สันติภาพ<span className="text-blue-400">BackOffice</span></div>
+               <div>{profile.siteName}<span className="text-blue-400">BackOffice</span></div>
             </div>
          </div>
          
@@ -92,16 +111,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* แก้ไข: Sidebar Header ใส่รูป + ข้อความกลับมา */}
         <div className="p-6 border-b border-slate-800">
            <div className="flex items-center gap-3 mb-2">
-               <Image 
-                   src="/logo.jpg" 
+               <img 
+                   src={profile.logoUrl || "/logo.jpg"} 
                    alt="Logo" 
-                   width={50} 
-                   height={50} 
-                   className="h-12 w-12 object-contain rounded-xl bg-white" // ใส่พื้นขาวให้โลโก้ชัดๆ
+                   className="h-12 w-12 object-contain rounded-xl bg-white"
+                   onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
                />
                <div className="leading-tight">
                    <div className="text-lg font-extrabold tracking-tight">
-                       สันติภาพ
+                       {profile.siteName}
                    </div>
                    <div className="text-blue-400 font-bold text-sm">
                        BackOffice

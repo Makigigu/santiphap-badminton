@@ -87,4 +87,18 @@ model ContactSetting {
   updatedAt    DateTime @updatedAt
 }
 
+model SiteProfileSetting {
+  id             Int      @id @default(1)
+  siteName       String   @default("")
+  slogan         String   @default("")
+  description    String   @default("")
+  logoUrl        String   @db.Text
+  heroImageUrl   String   @db.Text
+  aboutImage1Url String   @db.Text
+  aboutImage2Url String   @db.Text
+  rulesImageUrl  String   @db.Text
+  updatedAt      DateTime @updatedAt
+}
+
+
 

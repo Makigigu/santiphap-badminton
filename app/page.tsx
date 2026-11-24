@@ -55,14 +55,25 @@ export default function Home() {
     facebookName: 'ติดตามข่าวสารต่างๆ',
     facebookUrl: 'https://www.facebook.com/profile.php?id=100069056293502',
   });
+  const [profileSetting, setProfileSetting] = useState({
+    siteName: 'สันติภาพแบดมินตัน',
+    slogan: 'สนามแบดมินตันมาตรฐาน จังหวัด น่าน',
+    description: 'สนามพื้นยางมาตรฐาน ไฟสว่าง มีสิ่งอำนวยความสะดวก พร้อมจองออนไลน์ 24 ชั่วโมง',
+    logoUrl: '/logo.jpg',
+    heroImageUrl: '/CBadminton.jpg',
+    aboutImage1Url: 'https://i.pinimg.com/1200x/e3/b8/89/e3b8892a83a2cb1738291fa31ad32a1c.jpg',
+    aboutImage2Url: 'https://i.pinimg.com/736x/1b/98/b7/1b98b7b809d1fb90c76bcf0d892adb7d.jpg',
+    rulesImageUrl: 'https://i.pinimg.com/736x/3b/07/70/3b077015daefe8c84e501d2b418fa37d.jpg',
+  });
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [rulesRes, paymentRes, contactRes] = await Promise.all([
+        const [rulesRes, paymentRes, contactRes, profileRes] = await Promise.all([
           fetch('/api/rules?activeOnly=true'),
           fetch('/api/settings/payment'),
           fetch('/api/settings/contact'),
+          fetch('/api/settings/profile'),
         ]);
 
         if (rulesRes.ok) {
@@ -83,6 +94,13 @@ export default function Home() {
           const cData = await contactRes.json();
           if (cData.phoneNumber) {
             setContactSetting(cData);
+          }
+        }
+
+        if (profileRes.ok) {
+          const profData = await profileRes.json();
+          if (profData.siteName) {
+            setProfileSetting(profData);
           }
         }
       } catch (e) {
@@ -107,17 +125,16 @@ export default function Home() {
       <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-md shadow-sm z-50 border-b border-slate-100 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 cursor-pointer group">
-            {/* รูป logo.jpg */}
-            <Image 
-                src="/logo.jpg" 
+            {/* รูป Logo */}
+            <img 
+                src={profileSetting.logoUrl || "/logo.jpg"} 
                 alt="Logo" 
-                width={40} 
-                height={40} 
                 className="w-10 h-10 object-contain rounded-lg group-hover:scale-110 transition-transform" 
+                onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
             />
             {/* ข้อความโลโก้ */}
             <div className="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight">
-              สันติภาพ<span className="text-blue-600">แบดมินตัน</span>
+              {profileSetting.siteName || 'สันติภาพแบดมินตัน'}
             </div>
           </Link>
           
@@ -137,7 +154,7 @@ export default function Home() {
         <div 
             className="absolute inset-0 bg-cover bg-center animate-kenburns"
             style={{
-                backgroundImage: "url('/CBadminton.jpg')",
+                backgroundImage: `url('${profileSetting.heroImageUrl || "/CBadminton.jpg"}')`,
             }}
         ></div>
         {/* Overlay */}
@@ -146,7 +163,7 @@ export default function Home() {
         {/* Content */}
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto mt-10">
             <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 text-blue-100 border border-blue-400/30 text-10xl font-bold mb-4 backdrop-blur-sm">
-                สนามแบดมินตันมาตรฐาน จังหวัด น่าน
+                {profileSetting.slogan || 'สนามแบดมินตันมาตรฐาน จังหวัด น่าน'}
             </span>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg leading-tight">
                 จองสนามง่าย <br className="hidden md:block" />
@@ -155,7 +172,7 @@ export default function Home() {
                 </span>
             </h1>
             <p className="text-lg md:text-xl text-slate-200 mb-8 font-light max-w-2xl mx-auto drop-shadow-md">
-                สนามพื้นยางมาตรฐาน ไฟสว่าง มีสิ่งอำนวยความสะดวก <br className="hidden md:block"/> พร้อมจองออนไลน์ 24 ชั่วโมง
+                {profileSetting.description || 'สนามพื้นยางมาตรฐาน ไฟสว่าง มีสิ่งอำนวยความสะดวก พร้อมจองออนไลน์ 24 ชั่วโมง'}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/booking" className="px-8 py-4 rounded-full bg-blue-600 text-white font-bold text-lg hover:bg-blue-500 transition shadow-lg shadow-blue-900/50 hover:scale-105 transform">
@@ -251,10 +268,20 @@ export default function Home() {
                 {/* Left: Images */}
                 <div className="relative w-full lg:w-1/2">
                     <div className="rounded-[2.5rem] overflow-hidden shadow-2xl">
-                        <img src="https://i.pinimg.com/1200x/e3/b8/89/e3b8892a83a2cb1738291fa31ad32a1c.jpg" className="w-full h-[500px] object-cover hover:scale-105 transition duration-700" alt="Badminton Equipment" />
+                        <img 
+                            src={profileSetting.aboutImage1Url} 
+                            className="w-full h-[500px] object-cover hover:scale-105 transition duration-700" 
+                            alt="Badminton Court" 
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://i.pinimg.com/1200x/e3/b8/89/e3b8892a83a2cb1738291fa31ad32a1c.jpg'; }}
+                        />
                     </div>
                     <div className="absolute -bottom-12 -right-6 md:-right-12 w-2/3 rounded-[2rem] overflow-hidden shadow-2xl border-8 border-white hidden md:block">
-                        <img src="https://i.pinimg.com/736x/1b/98/b7/1b98b7b809d1fb90c76bcf0d892adb7d.jpg" className="w-full h-[300px] object-cover hover:scale-105 transition duration-700" alt="Badminton Action" />
+                        <img 
+                            src={profileSetting.aboutImage2Url} 
+                            className="w-full h-[300px] object-cover hover:scale-105 transition duration-700" 
+                            alt="Badminton Action" 
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://i.pinimg.com/736x/1b/98/b7/1b98b7b809d1fb90c76bcf0d892adb7d.jpg'; }}
+                        />
                     </div>
                 </div>
 
@@ -270,7 +297,7 @@ export default function Home() {
                     
                     <div className="text-slate-500 leading-loose text-lg mb-10 space-y-4 font-light">
                         <p>
-                            สนามแบด <strong className="text-slate-700 font-medium">สันติภาพ แบดมินตัน</strong> ตั้งอยู่ใจกลางเมืองน่าน เรามุ่งมั่นให้บริการสนามมาตรฐานเพื่อให้คุณได้ออกกำลังกายอย่างมีความสุข
+                            สนามแบด <strong className="text-slate-700 font-medium">{profileSetting.siteName}</strong> ตั้งอยู่ใจกลางเมืองน่าน เรามุ่งมั่นให้บริการสนามมาตรฐานเพื่อให้คุณได้ออกกำลังกายอย่างมีความสุข
                         </p>
                         <ul className="space-y-3 mt-4">
                             <li className="flex items-center gap-3">
@@ -359,9 +386,10 @@ export default function Home() {
                 <div className="w-full lg:w-2/5 order-1 lg:order-2 mb-10 lg:mb-0 relative">
                     <div className="relative rounded-[3rem] overflow-hidden shadow-2xl border-[10px] border-white rotate-3 hover:rotate-0 transition-transform duration-500 ease-out cursor-pointer group">
                         <img 
-                            src="https://i.pinimg.com/736x/3b/07/70/3b077015daefe8c84e501d2b418fa37d.jpg" 
+                            src={profileSetting.rulesImageUrl} 
                             className="w-full h-[600px] object-cover filter brightness-95 group-hover:brightness-105 group-hover:scale-105 transition-all duration-700" 
                             alt="Badminton Court Rules" 
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://i.pinimg.com/736x/3b/07/70/3b077015daefe8c84e501d2b418fa37d.jpg'; }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent"></div>
                         <div className="absolute bottom-8 left-0 right-0 text-center px-6">
@@ -382,8 +410,8 @@ export default function Home() {
       {/* --- Footer --- */}
       <footer className="bg-slate-900 text-white py-12 mt-10 rounded-t-[3rem]">
         <div className="max-w-7xl mx-auto px-4 text-center">
-            <div className="text-2xl font-bold mb-4">สันติภาพแบดมินตัน</div>
-            <p className="text-slate-400 mb-8 max-w-lg mx-auto">สนามแบดมินตันมาตรฐาน เพื่อสุขภาพและมิตรภาพที่ดี ของชาวจังหวัดน่าน</p>
+            <div className="text-2xl font-bold mb-4">{profileSetting.siteName}</div>
+            <p className="text-slate-400 mb-8 max-w-lg mx-auto">{profileSetting.slogan}</p>
             
             <div className="flex justify-center gap-6 mb-8">
                 <a href={contactSetting.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Facebook</a>
