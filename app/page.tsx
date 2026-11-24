@@ -47,13 +47,22 @@ export default function Home() {
     accountName: process.env.NEXT_PUBLIC_PROMPTPAY_NAME || 'นายมงคลชัย ต๊อดแก้ว',
     bankName: process.env.NEXT_PUBLIC_PROMPTPAY_BANK || 'ธนาคารกรุงไทย',
   });
+  const [contactSetting, setContactSetting] = useState({
+    phoneNumber: '064-038-8696',
+    openTime: '08:00 - 22:00 น.',
+    lineId: '@SantiphapBad',
+    lineUrl: 'https://line.me/R/ti/p/@915avwsq',
+    facebookName: 'ติดตามข่าวสารต่างๆ',
+    facebookUrl: 'https://www.facebook.com/profile.php?id=100069056293502',
+  });
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [rulesRes, paymentRes] = await Promise.all([
+        const [rulesRes, paymentRes, contactRes] = await Promise.all([
           fetch('/api/rules?activeOnly=true'),
           fetch('/api/settings/payment'),
+          fetch('/api/settings/contact'),
         ]);
 
         if (rulesRes.ok) {
@@ -67,6 +76,13 @@ export default function Home() {
           const pData = await paymentRes.json();
           if (pData.promptPayId) {
             setPaymentSetting(pData);
+          }
+        }
+
+        if (contactRes.ok) {
+          const cData = await contactRes.json();
+          if (cData.phoneNumber) {
+            setContactSetting(cData);
           }
         }
       } catch (e) {
@@ -182,10 +198,10 @@ export default function Home() {
                     </div>
                     <h3 className="text-xl font-bold mb-3 text-slate-800">จองผ่านโทรศัพท์</h3>
                     <div className="text-slate-500 text-sm leading-relaxed mb-6 flex-grow">
-                        <p className="font-semibold text-slate-700">064-038-8696</p>
-                        <p>08:00 - 22:00 น.</p>
+                        <p className="font-semibold text-slate-700">{contactSetting.phoneNumber}</p>
+                        <p>{contactSetting.openTime}</p>
                     </div>
-                    <a href="tel:0640388696" className="w-full py-3.5 rounded-xl bg-slate-100 text-slate-800 font-bold text-center hover:bg-slate-200 transition-colors">
+                    <a href={`tel:${contactSetting.phoneNumber.replace(/[^0-9]/g, '') || contactSetting.phoneNumber}`} className="w-full py-3.5 rounded-xl bg-slate-100 text-slate-800 font-bold text-center hover:bg-slate-200 transition-colors">
                         กดเพื่อโทรออก
                     </a>
                 </div>
@@ -198,9 +214,9 @@ export default function Home() {
                     <h3 className="text-xl font-bold mb-3 text-slate-800">ทักแชทไลน์</h3>
                     <div className="text-slate-500 text-sm leading-relaxed mb-6 flex-grow">
                         <p>สอบถามข้อมูล หรือแจ้งปัญหา</p>
-                        <p>@SantiphapBad</p>
+                        <p>{contactSetting.lineId}</p>
                     </div>
-                    <a href="https://line.me/R/ti/p/@915avwsq" target="_blank" rel="noreferrer" className="w-full py-3.5 rounded-xl bg-green-500 text-white font-bold text-center shadow-md hover:bg-green-600 transition-colors">
+                    <a href={contactSetting.lineUrl} target="_blank" rel="noreferrer" className="w-full py-3.5 rounded-xl bg-green-500 text-white font-bold text-center shadow-md hover:bg-green-600 transition-colors">
                         แอดไลน์
                     </a>
                 </div>
@@ -212,10 +228,10 @@ export default function Home() {
                     </div>
                     <h3 className="text-xl font-bold mb-3 text-slate-800">ทัก Inbox เพจ</h3>
                     <div className="text-slate-500 text-sm leading-relaxed mb-6 flex-grow">
-                        <p>ติดตามข่าวสารต่างๆ</p>
+                        <p>{contactSetting.facebookName}</p>
                     </div>
                     <a 
-                        href="https://www.facebook.com/profile.php?id=100069056293502" 
+                        href={contactSetting.facebookUrl} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-bold text-center shadow-md hover:bg-blue-700 transition-colors"
@@ -370,9 +386,9 @@ export default function Home() {
             <p className="text-slate-400 mb-8 max-w-lg mx-auto">สนามแบดมินตันมาตรฐาน เพื่อสุขภาพและมิตรภาพที่ดี ของชาวจังหวัดน่าน</p>
             
             <div className="flex justify-center gap-6 mb-8">
-                <a href="https://www.facebook.com/profile.php?id=100069056293502" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Facebook</a>
-                <a href="https://line.me/R/ti/p/@915avwsq" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Line</a>
-                <a href="tel:0640388696" className="text-slate-400 hover:text-white transition">064-038-8696</a>
+                <a href={contactSetting.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Facebook</a>
+                <a href={contactSetting.lineUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Line</a>
+                <a href={`tel:${contactSetting.phoneNumber.replace(/[^0-9]/g, '') || contactSetting.phoneNumber}`} className="text-slate-400 hover:text-white transition">{contactSetting.phoneNumber}</a>
             </div>
 
             <div className="mb-4">

@@ -76,3 +76,15 @@ model PaymentSetting {
   updatedAt   DateTime @updatedAt
 }
 
+model ContactSetting {
+  id           Int      @id @default(1)
+  phoneNumber  String   @default("064-038-8696")
+  openTime     String   @default("")
+  lineId       String   @default("@SantiphapBad")
+  lineUrl      String   @default("https://line.me/R/ti/p/@915avwsq")
+  facebookName String   @default("")
+  facebookUrl  String   @default("https://www.facebook.com/profile.php?id=100069056293502")
+  updatedAt    DateTime @updatedAt
+}
+
+
