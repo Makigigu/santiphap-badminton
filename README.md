@@ -51,10 +51,10 @@ DATABASE_URL="mysql://<user>:<password>@<host>:4000/<dbname>?sslaccept=strict"
 ADMIN_USERNAME="admin"
 ADMIN_PASSWORD="your-password"
 
-# PromptPay Default
-NEXT_PUBLIC_PROMPTPAY_ID="0640388696"
-NEXT_PUBLIC_PROMPTPAY_NAME="นายมงคลชัย ต๊อดแก้ว"
-NEXT_PUBLIC_PROMPTPAY_BANK="ธนาคารกรุงไทย"
+# PromptPay (เบอร์โทรหรือเลขบัตรประชาชน, ชื่อบัญชี, ชื่อธนาคาร)
+NEXT_PUBLIC_PROMPTPAY_ID="your-promptpay-id"
+NEXT_PUBLIC_PROMPTPAY_NAME="your-account-name"
+NEXT_PUBLIC_PROMPTPAY_BANK="your-bank-name"
 
 # LINE Bot API (ถ้ามี)
 LINE_CHANNEL_ACCESS_TOKEN="your-access-token"
