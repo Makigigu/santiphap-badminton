@@ -99,6 +99,7 @@ model SiteProfileSetting {
   aboutFeature1  String   @default("")
   aboutFeature2  String   @default("")
   aboutFeature3  String   @default("")
+  aboutFeatures  String   @default("") @db.VarChar(2000)
   aboutImage1Url String   @db.Text
   aboutImage2Url String   @db.Text
   rulesImageUrl  String   @db.Text

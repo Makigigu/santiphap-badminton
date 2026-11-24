@@ -11,9 +11,7 @@ interface ProfileData {
   heroImageUrl: string;
   aboutTitle: string;
   aboutDesc: string;
-  aboutFeature1: string;
-  aboutFeature2: string;
-  aboutFeature3: string;
+  aboutFeatures: string[];
   aboutImage1Url: string;
   aboutImage2Url: string;
   rulesImageUrl: string;
@@ -27,9 +25,11 @@ const DEFAULT_PROFILE: ProfileData = {
   heroImageUrl: '/CBadminton.jpg',
   aboutTitle: 'จุดนัดพบของคนรักแบดมินตัน',
   aboutDesc: 'สนามแบด สันติภาพ แบดมินตัน ตั้งอยู่ใจกลางเมืองน่าน เรามุ่งมั่นให้บริการสนามมาตรฐานเพื่อให้คุณได้ออกกำลังกายอย่างมีความสุข',
-  aboutFeature1: 'คอร์ทแบดมาตรฐาน 6 คอร์ท 5 พื้นยาง 1 พื้นปูน',
-  aboutFeature2: 'ไฟสว่างทั่วถึง อากาศถ่ายเทสะดวก ไม่ร้อนอบอ้าว',
-  aboutFeature3: 'มีห้องน้ำ ห้องอาบน้ำ และที่จอดรถกว้างขวาง',
+  aboutFeatures: [
+    'คอร์ทแบดมาตรฐาน 6 คอร์ท 5 พื้นยาง 1 พื้นปูน',
+    'ไฟสว่างทั่วถึง อากาศถ่ายเทสะดวก ไม่ร้อนอบอ้าว',
+    'มีห้องน้ำ ห้องอาบน้ำ และที่จอดรถกว้างขวาง',
+  ],
   aboutImage1Url: 'https://i.pinimg.com/1200x/e3/b8/89/e3b8892a83a2cb1738291fa31ad32a1c.jpg',
   aboutImage2Url: 'https://i.pinimg.com/736x/1b/98/b7/1b98b7b809d1fb90c76bcf0d892adb7d.jpg',
   rulesImageUrl: 'https://i.pinimg.com/736x/3b/07/70/3b077015daefe8c84e501d2b418fa37d.jpg',
@@ -68,9 +68,11 @@ export default function ProfileSettingsPage() {
           heroImageUrl: data.heroImageUrl || DEFAULT_PROFILE.heroImageUrl,
           aboutTitle: data.aboutTitle || DEFAULT_PROFILE.aboutTitle,
           aboutDesc: data.aboutDesc || DEFAULT_PROFILE.aboutDesc,
-          aboutFeature1: data.aboutFeature1 || DEFAULT_PROFILE.aboutFeature1,
-          aboutFeature2: data.aboutFeature2 || DEFAULT_PROFILE.aboutFeature2,
-          aboutFeature3: data.aboutFeature3 || DEFAULT_PROFILE.aboutFeature3,
+          aboutFeatures: Array.isArray(data.aboutFeatures) && data.aboutFeatures.length > 0
+            ? data.aboutFeatures
+            : [data.aboutFeature1, data.aboutFeature2, data.aboutFeature3].filter(Boolean).length > 0
+            ? [data.aboutFeature1, data.aboutFeature2, data.aboutFeature3].filter(Boolean)
+            : DEFAULT_PROFILE.aboutFeatures,
           aboutImage1Url: data.aboutImage1Url || DEFAULT_PROFILE.aboutImage1Url,
           aboutImage2Url: data.aboutImage2Url || DEFAULT_PROFILE.aboutImage2Url,
           rulesImageUrl: data.rulesImageUrl || DEFAULT_PROFILE.rulesImageUrl,
@@ -127,6 +129,38 @@ export default function ProfileSettingsPage() {
     }));
   };
 
+  // จัดการเพิ่ม/แก้ไข/ลบ รายการจุดเด่น
+  const handleAddFeature = () => {
+    setForm((prev) => ({
+      ...prev,
+      aboutFeatures: [...prev.aboutFeatures, ''],
+    }));
+  };
+
+  const handleUpdateFeature = (index: number, val: string) => {
+    setForm((prev) => {
+      const next = [...prev.aboutFeatures];
+      next[index] = val;
+      return { ...prev, aboutFeatures: next };
+    });
+  };
+
+  const handleRemoveFeature = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      aboutFeatures: prev.aboutFeatures.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleResetAboutText = () => {
+    setForm((prev) => ({
+      ...prev,
+      aboutTitle: DEFAULT_PROFILE.aboutTitle,
+      aboutDesc: DEFAULT_PROFILE.aboutDesc,
+      aboutFeatures: [...DEFAULT_PROFILE.aboutFeatures],
+    }));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -150,7 +184,12 @@ export default function ProfileSettingsPage() {
       if (res.ok && data.success) {
         alert('✅ บันทึกโปรไฟล์และรูปภาพหน้าหลักสำเร็จเรียบร้อย!\nหน้าแรกเปลี่ยนตามข้อมูลและรูปภาพใหม่ทันที');
         if (data.data) {
-          setForm(data.data);
+          setForm({
+            ...data.data,
+            aboutFeatures: Array.isArray(data.data.aboutFeatures)
+              ? data.data.aboutFeatures
+              : form.aboutFeatures,
+          });
         }
       } else {
         alert(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
@@ -385,105 +424,15 @@ export default function ProfileSettingsPage() {
             </div>
           </div>
 
-          {/* Card 4: ข้อมูลและภาพในส่วน "เกี่ยวกับเรา" (About Us) */}
+          {/* Card 4: ข้อมูลและภาพในส่วน "เกี่ยวกับเรา" (About Us) - รูปภาพอยู่ด้านบน ข้อความอยู่ด้านล่าง */}
           <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
             <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm font-bold">4</span>
               ข้อมูลและภาพในส่วน &quot;เกี่ยวกับเรา&quot; (About Us)
             </h2>
 
-            {/* ส่วนข้อความและรายละเอียด */}
-            <div className="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/70">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-800 uppercase flex items-center gap-1.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                  ข้อความรายละเอียด &quot;เกี่ยวกับเรา&quot;
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm((prev) => ({
-                      ...prev,
-                      aboutTitle: DEFAULT_PROFILE.aboutTitle,
-                      aboutDesc: DEFAULT_PROFILE.aboutDesc,
-                      aboutFeature1: DEFAULT_PROFILE.aboutFeature1,
-                      aboutFeature2: DEFAULT_PROFILE.aboutFeature2,
-                      aboutFeature3: DEFAULT_PROFILE.aboutFeature3,
-                    }));
-                  }}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
-                >
-                  คืนค่าข้อความเดิม
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  หัวข้อหลัก (Heading)
-                </label>
-                <input
-                  type="text"
-                  value={form.aboutTitle}
-                  onChange={(e) => setForm({ ...form, aboutTitle: e.target.value })}
-                  placeholder="เช่น จุดนัดพบของคนรักแบดมินตัน"
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-medium bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  ข้อความบรรยายรายละเอียด (Paragraph Description)
-                </label>
-                <textarea
-                  rows={3}
-                  value={form.aboutDesc}
-                  onChange={(e) => setForm({ ...form, aboutDesc: e.target.value })}
-                  placeholder="เช่น สนามแบด สันติภาพ แบดมินตัน ตั้งอยู่ใจกลางเมืองน่าน เรามุ่งมั่นให้บริการสนามมาตรฐาน..."
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-medium bg-white"
-                />
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase">
-                  จุดเด่นและสิ่งอำนวยความสะดวก (รายการ 3 ข้อพร้อมเครื่องหมาย ✓)
-                </label>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">✓</span>
-                    <input
-                      type="text"
-                      value={form.aboutFeature1}
-                      onChange={(e) => setForm({ ...form, aboutFeature1: e.target.value })}
-                      placeholder="เช่น คอร์ทแบดมาตรฐาน 6 คอร์ท 5 พื้นยาง 1 พื้นปูน"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">✓</span>
-                    <input
-                      type="text"
-                      value={form.aboutFeature2}
-                      onChange={(e) => setForm({ ...form, aboutFeature2: e.target.value })}
-                      placeholder="เช่น ไฟสว่างทั่วถึง อากาศถ่ายเทสะดวก ไม่ร้อนอบอ้าว"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">✓</span>
-                    <input
-                      type="text"
-                      value={form.aboutFeature3}
-                      onChange={(e) => setForm({ ...form, aboutFeature3: e.target.value })}
-                      placeholder="เช่น มีห้องน้ำ ห้องอาบน้ำ และที่จอดรถกว้างขวาง"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ส่วนรูปภาพทั้ง 2 รูป */}
-            <div className="space-y-5 pt-1">
+            {/* === 1. ส่วนรูปภาพประกอบ (อยู่ด้านบน) === */}
+            <div className="space-y-5">
               <h3 className="text-xs font-extrabold text-slate-800 uppercase flex items-center gap-1.5">
                 <span>🖼️</span> รูปภาพประกอบ &quot;เกี่ยวกับเรา&quot; (2 รูป)
               </h3>
@@ -590,6 +539,104 @@ export default function ProfileSettingsPage() {
                 </div>
               </div>
             </div>
+
+            {/* === 2. ส่วนข้อความและรายละเอียด (อยู่ด้านล่าง) === */}
+            <div className="space-y-5 bg-slate-50 p-5 rounded-2xl border border-slate-200/70 pt-5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <span className="text-xs font-extrabold text-slate-800 uppercase flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                  ข้อความรายละเอียด &quot;เกี่ยวกับเรา&quot;
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetAboutText}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                >
+                  คืนค่าข้อความเดิม
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  หัวข้อหลัก (Heading)
+                </label>
+                <input
+                  type="text"
+                  value={form.aboutTitle}
+                  onChange={(e) => setForm({ ...form, aboutTitle: e.target.value })}
+                  placeholder="เช่น จุดนัดพบของคนรักแบดมินตัน"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-medium bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  ข้อความบรรยายรายละเอียด (Paragraph Description)
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.aboutDesc}
+                  onChange={(e) => setForm({ ...form, aboutDesc: e.target.value })}
+                  placeholder="เช่น สนามแบด สันติภาพ แบดมินตัน ตั้งอยู่ใจกลางเมืองน่าน เรามุ่งมั่นให้บริการสนามมาตรฐาน..."
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-medium bg-white"
+                />
+              </div>
+
+              {/* Dynamic Feature Bullets */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 uppercase">
+                    จุดเด่นและสิ่งอำนวยความสะดวก ({form.aboutFeatures.length} ข้อ)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAddFeature}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-sm"
+                  >
+                    <span>+</span> เพิ่มรายการจุดเด่น
+                  </button>
+                </div>
+
+                {/* กล่องรายการ: ถ้าข้อเยอะ/ยาว จะมีเคอร์เซอร์ Scrollbar เลื่อนได้อัตโนมัติ */}
+                <div className="max-h-72 overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
+                  {form.aboutFeatures.length === 0 ? (
+                    <div className="text-center py-4 text-xs text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+                      ยังไม่มีรายการจุดเด่น กดปุ่ม &quot;+ เพิ่มรายการจุดเด่น&quot; ด้านบนเพื่อเพิ่มข้อใหม่
+                    </div>
+                  ) : (
+                    form.aboutFeatures.map((feat, idx) => (
+                      <div key={idx} className="flex items-center gap-2 group animate-fade-in">
+                        <span className="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+                          ✓
+                        </span>
+                        <input
+                          type="text"
+                          value={feat}
+                          onChange={(e) => handleUpdateFeature(idx, e.target.value)}
+                          placeholder={`จุดเด่นข้อที่ ${idx + 1}`}
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs bg-white font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFeature(idx)}
+                          title="ลบข้อนี้"
+                          className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center text-xs font-bold transition shrink-0 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {form.aboutFeatures.length > 4 && (
+                  <div className="text-[11px] text-slate-400 text-right pr-2">
+                    ↕️ มี {form.aboutFeatures.length} ข้อ สามารถเลื่อนดูภายในกล่องได้
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
 
           {/* Card 5: ภาพประกอบระเบียบสนาม (Rules Image) */}
@@ -771,20 +818,14 @@ export default function ProfileSettingsPage() {
                   </div>
                 </div>
 
-                {/* Bullets Preview */}
-                <div className="pt-2 border-t border-slate-700/60 space-y-1 text-[11px] text-slate-300">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-emerald-400 font-bold">✓</span>
-                    <span className="truncate">{form.aboutFeature1 || 'คอร์ทแบดมาตรฐาน 6 คอร์ท'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-emerald-400 font-bold">✓</span>
-                    <span className="truncate">{form.aboutFeature2 || 'ไฟสว่างทั่วถึง อากาศถ่ายเทสะดวก'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-emerald-400 font-bold">✓</span>
-                    <span className="truncate">{form.aboutFeature3 || 'มีห้องน้ำ ห้องอาบน้ำ'}</span>
-                  </div>
+                {/* Bullets Preview (มี Scroll ถ้าข้อเยอะ) */}
+                <div className="pt-2 border-t border-slate-700/60 max-h-36 overflow-y-auto custom-scrollbar space-y-1 text-[11px] text-slate-300">
+                  {form.aboutFeatures.filter(Boolean).map((feat, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 truncate">
+                      <span className="text-emerald-400 font-bold">✓</span>
+                      <span className="truncate">{feat}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
