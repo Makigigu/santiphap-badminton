@@ -61,6 +61,11 @@ export default function Home() {
     description: 'สนามพื้นยางมาตรฐาน ไฟสว่าง มีสิ่งอำนวยความสะดวก พร้อมจองออนไลน์ 24 ชั่วโมง',
     logoUrl: '/logo.jpg',
     heroImageUrl: '/CBadminton.jpg',
+    aboutTitle: 'จุดนัดพบของคนรักแบดมินตัน',
+    aboutDesc: 'สนามแบด สันติภาพ แบดมินตัน ตั้งอยู่ใจกลางเมืองน่าน เรามุ่งมั่นให้บริการสนามมาตรฐานเพื่อให้คุณได้ออกกำลังกายอย่างมีความสุข',
+    aboutFeature1: 'คอร์ทแบดมาตรฐาน 6 คอร์ท 5 พื้นยาง 1 พื้นปูน',
+    aboutFeature2: 'ไฟสว่างทั่วถึง อากาศถ่ายเทสะดวก ไม่ร้อนอบอ้าว',
+    aboutFeature3: 'มีห้องน้ำ ห้องอาบน้ำ และที่จอดรถกว้างขวาง',
     aboutImage1Url: 'https://i.pinimg.com/1200x/e3/b8/89/e3b8892a83a2cb1738291fa31ad32a1c.jpg',
     aboutImage2Url: 'https://i.pinimg.com/736x/1b/98/b7/1b98b7b809d1fb90c76bcf0d892adb7d.jpg',
     rulesImageUrl: 'https://i.pinimg.com/736x/3b/07/70/3b077015daefe8c84e501d2b418fa37d.jpg',
@@ -292,26 +297,32 @@ export default function Home() {
                     </span>
                     
                     <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-8 leading-tight">
-                        จุดนัดพบของคนรักแบดมินตัน
+                        {profileSetting.aboutTitle || 'จุดนัดพบของคนรักแบดมินตัน'}
                     </h2>
                     
                     <div className="text-slate-500 leading-loose text-lg mb-10 space-y-4 font-light">
-                        <p>
-                            สนามแบด <strong className="text-slate-700 font-medium">{profileSetting.siteName}</strong> ตั้งอยู่ใจกลางเมืองน่าน เรามุ่งมั่นให้บริการสนามมาตรฐานเพื่อให้คุณได้ออกกำลังกายอย่างมีความสุข
+                        <p className="whitespace-pre-line">
+                            {profileSetting.aboutDesc || `สนามแบด ${profileSetting.siteName} ตั้งอยู่ใจกลางเมืองน่าน เรามุ่งมั่นให้บริการสนามมาตรฐานเพื่อให้คุณได้ออกกำลังกายอย่างมีความสุข`}
                         </p>
                         <ul className="space-y-3 mt-4">
-                            <li className="flex items-center gap-3">
-                                <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">✓</span>
-                                <span>คอร์ทแบดมาตรฐาน 6 คอร์ท 5 พื้นยาง 1 พื้นปูน</span>
-                            </li>
-                            <li className="flex items-center gap-3">
-                                <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">✓</span>
-                                <span>ไฟสว่างทั่วถึง อากาศถ่ายเทสะดวก ไม่ร้อนอบอ้าว</span>
-                            </li>
-                            <li className="flex items-center gap-3">
-                                <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">✓</span>
-                                <span>มีห้องน้ำ ห้องอาบน้ำ และที่จอดรถกว้างขวาง</span>
-                            </li>
+                            {profileSetting.aboutFeature1 && (
+                              <li className="flex items-center gap-3">
+                                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">✓</span>
+                                  <span>{profileSetting.aboutFeature1}</span>
+                              </li>
+                            )}
+                            {profileSetting.aboutFeature2 && (
+                              <li className="flex items-center gap-3">
+                                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">✓</span>
+                                  <span>{profileSetting.aboutFeature2}</span>
+                              </li>
+                            )}
+                            {profileSetting.aboutFeature3 && (
+                              <li className="flex items-center gap-3">
+                                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">✓</span>
+                                  <span>{profileSetting.aboutFeature3}</span>
+                              </li>
+                            )}
                         </ul>
                     </div>
                 </div>

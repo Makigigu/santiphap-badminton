@@ -94,6 +94,11 @@ model SiteProfileSetting {
   description    String   @default("")
   logoUrl        String   @db.Text
   heroImageUrl   String   @db.Text
+  aboutTitle     String   @default("")
+  aboutDesc      String   @default("") @db.VarChar(1000)
+  aboutFeature1  String   @default("")
+  aboutFeature2  String   @default("")
+  aboutFeature3  String   @default("")
   aboutImage1Url String   @db.Text
   aboutImage2Url String   @db.Text
   rulesImageUrl  String   @db.Text
